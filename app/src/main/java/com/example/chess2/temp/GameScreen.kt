@@ -33,10 +33,9 @@ import java.util.Locale
 fun Chessboard(
     boardState: List<List<Figure?>>,
     selectedPiece: Pair<Int, Int>?,
-    possibleMoves: List<Pair<Int, Int>>,
+    //possibleMoves: List<Pair<Int, Int>>,
     currentPlayerColor: PlayerColor,
-    onPieceSelected: (row: Int, col: Int) -> Unit,
-    onPieceMoved: (fromRow: Int, fromCol: Int, toRow: Int, toCol: Int) -> Unit
+    onPieceSelected: (Figure?) -> Unit
 ) {
     Column {
         val rows = if (currentPlayerColor == PlayerColor.WHITE) boardState.indices else boardState.indices.reversed()
@@ -44,13 +43,16 @@ fun Chessboard(
             Row {
                 val cols = if (currentPlayerColor == PlayerColor.WHITE) boardState[row].indices else boardState[row].indices.reversed()
                 for (col in cols) {
-                    val isHighlighted = selectedPiece != null && (row to col) in possibleMoves
+                    val figure = boardState[row][col]
+                    //val isHighlighted = selectedPiece != null && (row to col) in possibleMoves
                     ChessSquare(
-                        figure = boardState[row][col],
+                        figure = figure,
                         position = Pair(row, col),
                         isSelected = selectedPiece?.first == row && selectedPiece.second == col,
-                        isHighlighted = isHighlighted,
-                        onClick = { onPieceSelected(row, col) }
+                        //isHighlighted = isHighlighted,
+                        onClick = {
+                            onPieceSelected(figure)
+                        }
                     )
                 }
             }
@@ -63,7 +65,7 @@ fun ChessSquare(
     figure: Figure?,
     position: Pair<Int,Int>,
     isSelected: Boolean,
-    isHighlighted: Boolean,
+    //isHighlighted: Boolean,
     onClick: () -> Unit
 ) {
     val context = LocalContext.current
@@ -142,9 +144,7 @@ fun ChessboardPreview() {
     Chessboard(
         boardState,
         selectedPiece.value,
-        possibleMoves.value,
         PlayerColor.WHITE,
-        onPieceSelected = { row, col -> },
-        onPieceMoved = { fromRow, fromCol, toRow, toCol -> }
+        onPieceSelected = { }
     )
 }

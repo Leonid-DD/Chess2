@@ -1,6 +1,5 @@
 package com.example.chess2.game
 
-import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.FirebaseFirestore
@@ -59,10 +58,10 @@ class GameStateViewModel : ViewModel() {
         db.collection("games").add(game)
     }
 
-    fun selectChessPiece(row: Int, col: Int) {
-        val selectedPiece = game.gameState[row][col]!!
+    fun selectChessPiece(figure: Figure?) {
+        val selectedPiece = figure
         if (selectedPiece != null) {
-            selectedPiecePosition = Pair(row, col)
+            selectedPiecePosition = Pair(figure.row, figure.col)
         } else {
             selectedPiecePosition = null
         }
@@ -84,6 +83,14 @@ class GameStateViewModel : ViewModel() {
 
     fun changePlayer() {
         whiteMove = !whiteMove
+    }
+
+    fun getWhitePlayer(): User {
+        return wPlayer
+    }
+
+    fun getBoardState(): MutableList<MutableList<Figure?>> {
+        return game.gameState
     }
 
     fun getSelectedPiece(): Pair<Int, Int>? {

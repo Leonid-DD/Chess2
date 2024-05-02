@@ -10,16 +10,12 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.rememberNavController
-import androidx.compose.ui.tooling.preview.Preview
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.composable
@@ -27,8 +23,8 @@ import com.example.chess2.auth.SignInScreen
 import com.example.chess2.auth.SignInViewModel
 import com.example.chess2.auth.google.GoogleAuthUIClient
 import com.example.chess2.game.GameStateViewModel
+import com.example.chess2.game.figures.PlayerColor
 import com.example.chess2.temp.Chessboard
-import com.example.chess2.temp.ProfileScreen
 import com.example.chess2.temp.SearchGame
 import com.example.chess2.ui.theme.Chess2Theme
 import com.example.chess2.user.UserViewModel
@@ -58,6 +54,8 @@ class MainActivity : ComponentActivity() {
                             val viewModel = viewModel<SignInViewModel>()
                             val state by viewModel.state.collectAsStateWithLifecycle()
 
+                            val userViewModel = viewModel<UserViewModel>()
+
                             LaunchedEffect(key1 = Unit) {
                                 if (googleAuthUiClient.getSignedInUser() != null) {
                                     navController.navigate("search_game")
@@ -86,8 +84,12 @@ class MainActivity : ComponentActivity() {
                                         Toast.LENGTH_SHORT
                                     ).show()
 
-                                    navController.navigate("search_game")
                                     viewModel.resetState()
+
+                                    userViewModel.initUser()
+
+                                    navController.navigate("search_game")
+
                                 }
                             }
 
@@ -107,12 +109,11 @@ class MainActivity : ComponentActivity() {
                         }
                         composable("search_game") {
 
-                            val viewModel = viewModel<UserViewModel>()
-                            viewModel.initUser()
+                            val userViewModel = viewModel<UserViewModel>()
+                            userViewModel.initUser()
+                            val state by userViewModel.state.collectAsStateWithLifecycle()
 
                             val game = viewModel<GameStateViewModel>()
-
-                            val state by viewModel.state.collectAsStateWithLifecycle()
 
                             LaunchedEffect(key1 = state.isMatchingSuccessful) {
                                 if (state.isMatchingSuccessful) {
@@ -123,7 +124,7 @@ class MainActivity : ComponentActivity() {
                                     ).show()
 
                                     navController.navigate("game")
-                                    viewModel.resetState()
+                                    userViewModel.resetState()
 
                                     game.initGame(state.users?.get(0)!!, state.users?.get(1)!!)
                                 }
@@ -132,13 +133,13 @@ class MainActivity : ComponentActivity() {
                             SearchGame(
                                 state = state,
                                 searchClick = {
-                                    if (viewModel.getSearchStatus()) {
-                                        viewModel.stopSearching()
+                                    if (userViewModel.getSearchStatus()) {
+                                        userViewModel.stopSearching()
                                     } else {
                                         lifecycleScope.launch {
-                                            viewModel.startSearching()
-                                            val match = viewModel.findMatchingUsers()
-                                            viewModel.onMatchingResult(match)
+                                            userViewModel.startSearching()
+                                            val match = userViewModel.findMatchingUsers()
+                                            userViewModel.onMatchingResult(match)
                                         }
                                     }
                                 },
@@ -151,13 +152,26 @@ class MainActivity : ComponentActivity() {
                                             Toast.LENGTH_SHORT
                                         ).show()
                                     }
-                                    navController.popBackStack()
+                                    //navController.popBackStack()
                                 }
                             )
                         }
                         composable("game") {
 
-                            //Chessboard()
+                            val game = viewModel<GameStateViewModel>()
+
+                            val currentUser = googleAuthUiClient.getSignedInUser()
+                            val currentPlayerColor = if (currentUser?.userId == game.getWhitePlayer().userId)
+                                PlayerColor.WHITE
+                            else
+                                PlayerColor.BLACK
+
+                            Chessboard(
+                                boardState = game.getBoardState(),
+                                selectedPiece = null,
+                                currentPlayerColor = currentPlayerColor,
+                                onPieceSelected = { figure -> game.selectChessPiece(figure) }
+                            )
 
                         }
                     }
