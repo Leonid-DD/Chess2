@@ -22,6 +22,7 @@ class UserViewModel : ViewModel() {
     fun initUser() {
         user = User(
             FirebaseAuth.getInstance().uid!!,
+            null,
             false,
             false
         )
@@ -44,13 +45,13 @@ class UserViewModel : ViewModel() {
     }
 
     private fun userDetails(): DocumentReference {
-        return db.collection("users").document(user.userId)
+        return db.collection("queue").document(user.userId)
     }
 
     suspend fun findMatchingUsers(): List<User>? {
         val matchingUsers = mutableListOf<User>()
         try {
-            val documents = db.collection("users")
+            val documents = db.collection("queue")
                 .whereEqualTo("searching", true)
                 .get()
                 .await()
@@ -60,7 +61,7 @@ class UserViewModel : ViewModel() {
                 if (userId != user.userId) {
                     val searching = document.getBoolean("searching") ?: false
                     val inGame = document.getBoolean("inGame") ?: false
-                    matchingUsers.add(User(userId!!, searching, inGame))
+                    matchingUsers.add(User(userId!!, null, searching, inGame))
                 }
             }
 
@@ -76,10 +77,10 @@ class UserViewModel : ViewModel() {
     }
 
     private fun updateUsersInGame(user1: User, user2: User) {
-        db.collection("users").document(user1.userId)
+        db.collection("queue").document(user1.userId)
             .delete()
 
-        db.collection("users").document(user2.userId)
+        db.collection("queue").document(user2.userId)
             .delete()
     }
 

@@ -55,8 +55,6 @@ class GameStateViewModel : ViewModel() {
         bPlayer = user2
         game = Game(user1.userId + user2.userId, boardState, wPlayer, bPlayer)
 
-
-
         db.collection("games").add(game)
     }
 
@@ -103,21 +101,4 @@ class GameStateViewModel : ViewModel() {
         return whiteMove
     }
 
-//    fun convertToFirebase(game: Game): GameFB {
-//
-//        val stateFb = MutableList<Figure?>(64) {
-//            for (row in 0..7) {
-//                for (col in 0..7) {
-//                    game.gameState[row][col]
-//                }
-//            }
-//        }
-//        return GameFB(game.gameId, stateFb, game.wPlayer, game.bPlayer)
-//    }
-//
-//    fun convertFromFirebase(gameFb: GameFB): Game {
-//
-//
-//
-//    }
 }
