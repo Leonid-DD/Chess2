@@ -16,13 +16,12 @@ class UserViewModel : ViewModel() {
     private val _state = MutableStateFlow(MatchingState())
     val state = _state.asStateFlow()
 
-    private lateinit var user: User
+    private lateinit var user: UserQueue
     val db = FirebaseFirestore.getInstance()
 
     fun initUser() {
-        user = User(
+        user = UserQueue(
             FirebaseAuth.getInstance().uid!!,
-            null,
             false,
             false
         )
@@ -48,8 +47,8 @@ class UserViewModel : ViewModel() {
         return db.collection("queue").document(user.userId)
     }
 
-    suspend fun findMatchingUsers(): List<User>? {
-        val matchingUsers = mutableListOf<User>()
+    suspend fun findMatchingUsers(): List<UserQueue>? {
+        val matchingUsers = mutableListOf<UserQueue>()
         try {
             val documents = db.collection("queue")
                 .whereEqualTo("searching", true)
@@ -61,7 +60,7 @@ class UserViewModel : ViewModel() {
                 if (userId != user.userId) {
                     val searching = document.getBoolean("searching") ?: false
                     val inGame = document.getBoolean("inGame") ?: false
-                    matchingUsers.add(User(userId!!, null, searching, inGame))
+                    matchingUsers.add(UserQueue(userId!!, searching, inGame))
                 }
             }
 
@@ -76,7 +75,7 @@ class UserViewModel : ViewModel() {
         return null
     }
 
-    private fun updateUsersInGame(user1: User, user2: User) {
+    private fun updateUsersInGame(user1: UserQueue, user2: UserQueue) {
         db.collection("queue").document(user1.userId)
             .delete()
 
@@ -84,7 +83,7 @@ class UserViewModel : ViewModel() {
             .delete()
     }
 
-    fun onMatchingResult(result: List<User>?) {
+    fun onMatchingResult(result: List<UserQueue>?) {
         _state.update { it.copy(
             isMatchingSuccessful = result!=null,
             matchingError = null,

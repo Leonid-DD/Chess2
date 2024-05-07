@@ -40,6 +40,10 @@ class MainActivity : ComponentActivity() {
         )
     }
 
+    val signInViewModel = SignInViewModel()
+    val userViewModel = UserViewModel()
+    val gameViewModel = GameStateViewModel()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
@@ -51,10 +55,7 @@ class MainActivity : ComponentActivity() {
                     val navController = rememberNavController()
                     NavHost(navController = navController, startDestination = "sign_in") {
                         composable("sign_in") {
-                            val viewModel = viewModel<SignInViewModel>()
-                            val state by viewModel.state.collectAsStateWithLifecycle()
-
-                            val userViewModel = viewModel<UserViewModel>()
+                            val state by signInViewModel.state.collectAsStateWithLifecycle()
 
                             LaunchedEffect(key1 = Unit) {
                                 if (googleAuthUiClient.getSignedInUser() != null) {
@@ -70,7 +71,7 @@ class MainActivity : ComponentActivity() {
                                             val signInResult = googleAuthUiClient.signInWithIntent(
                                                 intent = result.data ?: return@launch
                                             )
-                                            viewModel.onSignInResult(signInResult)
+                                            signInViewModel.onSignInResult(signInResult)
                                         }
                                     }
                                 }
@@ -84,7 +85,7 @@ class MainActivity : ComponentActivity() {
                                         Toast.LENGTH_SHORT
                                     ).show()
 
-                                    viewModel.resetState()
+                                    signInViewModel.resetState()
 
                                     userViewModel.initUser()
 
@@ -109,11 +110,8 @@ class MainActivity : ComponentActivity() {
                         }
                         composable("search_game") {
 
-                            val userViewModel = viewModel<UserViewModel>()
                             userViewModel.initUser()
                             val state by userViewModel.state.collectAsStateWithLifecycle()
-
-                            val game = viewModel<GameStateViewModel>()
 
                             LaunchedEffect(key1 = state.isMatchingSuccessful) {
                                 if (state.isMatchingSuccessful) {
@@ -126,7 +124,9 @@ class MainActivity : ComponentActivity() {
                                     navController.navigate("game")
                                     userViewModel.resetState()
 
-                                    game.initGame(state.users?.get(0)!!, state.users?.get(1)!!)
+                                    //Получить доски пользователей из БД по ID из поиска
+
+                                    gameViewModel.initGame(state.users?.get(0)!!, state.users?.get(1)!!)
                                 }
                             }
 
@@ -158,19 +158,17 @@ class MainActivity : ComponentActivity() {
                         }
                         composable("game") {
 
-                            val game = viewModel<GameStateViewModel>()
-
                             val currentUser = googleAuthUiClient.getSignedInUser()
-                            val currentPlayerColor = if (currentUser?.userId == game.getWhitePlayer().userId)
+                            val currentPlayerColor = if (currentUser?.userId == gameViewModel.getWhitePlayer().userId)
                                 PlayerColor.WHITE
                             else
                                 PlayerColor.BLACK
 
                             Chessboard(
-                                boardState = game.getBoardState(),
+                                boardState = gameViewModel.getBoardState(),
                                 selectedPiece = null,
                                 currentPlayerColor = currentPlayerColor,
-                                onPieceSelected = { figure -> game.selectChessPiece(figure) }
+                                onPieceSelected = { figure -> gameViewModel.selectChessPiece(figure) }
                             )
 
                         }

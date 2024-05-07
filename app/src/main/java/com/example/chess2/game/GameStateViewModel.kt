@@ -7,11 +7,15 @@ import com.example.chess2.game.figures.Figure
 import com.example.chess2.game.figures.FigureName
 import com.example.chess2.game.figures.PlayerColor
 import com.example.chess2.user.User
+import com.example.chess2.user.UserQueue
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.callbackFlow
 
 class GameStateViewModel : ViewModel() {
 
-    private lateinit var wPlayer: User
-    private lateinit var bPlayer: User
+    //Change to User
+    private lateinit var wPlayer: UserQueue
+    private lateinit var bPlayer: UserQueue
 
     private lateinit var game: Game
 
@@ -21,7 +25,8 @@ class GameStateViewModel : ViewModel() {
 
     val db = FirebaseFirestore.getInstance()
 
-    fun initGame(user1: User, user2: User) {
+    //Change to User
+    fun initGame(user1: UserQueue, user2: UserQueue) {
 
         val boardState = MutableList(8) { row ->
             MutableList(8) { col ->
@@ -53,9 +58,10 @@ class GameStateViewModel : ViewModel() {
 
         wPlayer = user1
         bPlayer = user2
-        game = Game(user1.userId + user2.userId, boardState, wPlayer, bPlayer)
 
-        db.collection("games").add(game)
+        game = Game(boardState, wPlayer, bPlayer)
+
+        db.collection("games").add(GameFB(convertToFB(boardState), wPlayer, bPlayer))
     }
 
     fun selectChessPiece(figure: Figure?) {
@@ -85,7 +91,7 @@ class GameStateViewModel : ViewModel() {
         whiteMove = !whiteMove
     }
 
-    fun getWhitePlayer(): User {
+    fun getWhitePlayer(): UserQueue {
         return wPlayer
     }
 
@@ -93,12 +99,74 @@ class GameStateViewModel : ViewModel() {
         return game.gameState
     }
 
+//    fun getBoardState1() = callbackFlow {
+//
+//        val collection = db.collection("games")
+//
+//        val snapshotListener = collection.addSnapshotListener { value, error ->
+//            val response = if (error = null) {
+//                OnSuccess(value)
+//            } else {
+//                OnError(error)
+//            }
+//
+//            offer(response)
+//        }
+//
+//        awaitClose {
+//            snapshotListener.remove()
+//        }
+//
+//    }
+
     fun getSelectedPiece(): Pair<Int, Int>? {
         return selectedPiecePosition
     }
 
     fun isWhiteMove(): Boolean {
         return whiteMove
+    }
+
+    fun convertToFB(game: MutableList<MutableList<Figure?>>): MutableList<Figure> {
+
+        val result = mutableListOf<Figure>()
+
+        for (row in 0..7) {
+            for (col in 0..7) {
+                val figure = game[row][col]
+                if (figure != null) {
+                    result.add(figure)
+                }
+            }
+        }
+
+        return result
+    }
+
+    fun convertFromFB(gameFB: MutableList<Figure>): MutableList<MutableList<Figure?>> {
+
+        val result = MutableList (8) {
+            MutableList<Figure?>(8) {
+                null
+            }
+        }
+
+        gameFB.sortBy { figure -> figure.row }
+
+        for (figure in gameFB) {
+            for (row in 0..7) {
+                for (col in 0..7) {
+                    result[row][col] =
+                        if (figure.row == row && figure.col == col)
+                            figure
+                        else
+                            null
+                }
+            }
+        }
+
+        return result
+
     }
 
 }

@@ -6,7 +6,7 @@ import com.example.chess2.game.figures.PlayerColor
 
 class Logic {
 
-    var piecesBox = mutableSetOf<Figure>()
+    var piecesBox = mutableListOf<Figure>()
 
     init {
         reset()
@@ -82,6 +82,48 @@ class Logic {
             if (col == piece.col && row == piece.row) return piece
         }
         return null
+    }
+
+    fun convertToFB(game: MutableList<MutableList<Figure?>>): MutableList<Figure> {
+
+        val result = mutableListOf<Figure>()
+
+        for (row in 0..7) {
+            for (col in 0..7) {
+                val figure = game[row][col]
+                if (figure != null) {
+                    result.add(figure)
+                }
+            }
+        }
+
+        return result
+    }
+
+    fun convertFromFB(gameFB: MutableList<Figure>): MutableList<MutableList<Figure?>> {
+
+        val result = MutableList (8) {
+            MutableList<Figure?>(8) {
+                null
+            }
+        }
+
+        gameFB.sortBy { figure -> figure.row }
+
+        for (figure in gameFB) {
+            for (row in 0..7) {
+                for (col in 0..7) {
+                    result[row][col] =
+                        if (figure.row == row && figure.col == col)
+                            figure
+                        else
+                            null
+                }
+            }
+        }
+
+        return result
+
     }
 
 }

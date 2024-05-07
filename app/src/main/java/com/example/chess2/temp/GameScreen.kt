@@ -16,6 +16,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
@@ -38,10 +39,10 @@ fun Chessboard(
     onPieceSelected: (Figure?) -> Unit
 ) {
     Column {
-        val rows = if (currentPlayerColor == PlayerColor.WHITE) boardState.indices else boardState.indices.reversed()
+        val rows = boardState.indices
         for (row in rows) {
             Row {
-                val cols = if (currentPlayerColor == PlayerColor.WHITE) boardState[row].indices else boardState[row].indices.reversed()
+                val cols = boardState[row].indices
                 for (col in cols) {
                     val figure = boardState[row][col]
                     //val isHighlighted = selectedPiece != null && (row to col) in possibleMoves
@@ -81,9 +82,12 @@ fun ChessSquare(
         Color.Gray
     }
 
+    val configuration = LocalConfiguration.current
+    val cellSide = configuration.screenWidthDp.dp / 8
+
     Box(
         modifier = Modifier
-            .size(50.dp)
+            .size(cellSide)
             .background(squareColor)
             .clickable { onClick() },
         contentAlignment = Alignment.Center
