@@ -7,6 +7,7 @@ import com.example.chess2.user.UserQueue
 import java.util.Objects
 
 data class Game(
+    val gameId: String,
     val gameState: MutableList<MutableList<Figure?>>,
     //Change to User
     val wPlayer: UserQueue,

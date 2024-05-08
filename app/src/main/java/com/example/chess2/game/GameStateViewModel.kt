@@ -8,8 +8,11 @@ import com.example.chess2.game.figures.FigureName
 import com.example.chess2.game.figures.PlayerColor
 import com.example.chess2.user.User
 import com.example.chess2.user.UserQueue
+import com.google.firebase.firestore.toObject
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.tasks.await
+import kotlin.random.Random
 
 class GameStateViewModel : ViewModel() {
 
@@ -56,12 +59,22 @@ class GameStateViewModel : ViewModel() {
             }
         }
 
-        wPlayer = user1
-        bPlayer = user2
+        val coin = (0..1).random()
+        if (coin == 0) {
+            wPlayer = user1
+            bPlayer = user2
+        } else {
+            wPlayer = user2
+            bPlayer = user1
+        }
 
-        game = Game(boardState, wPlayer, bPlayer)
+        game = Game(createGameId(wPlayer, bPlayer), boardState, wPlayer, bPlayer)
 
-        db.collection("games").add(GameFB(convertToFB(boardState), wPlayer, bPlayer))
+        gameDetails(wPlayer, bPlayer).set(GameFB(createGameId(wPlayer, bPlayer), convertToFB(boardState), wPlayer, bPlayer))
+    }
+
+    private fun gameDetails(user1: UserQueue, user2: UserQueue): DocumentReference {
+        return db.collection("games").document(createGameId(user1, user2))
     }
 
     fun selectChessPiece(figure: Figure?) {
@@ -75,14 +88,14 @@ class GameStateViewModel : ViewModel() {
 
     fun moveChessPiece(toRow: Int, toCol: Int) {
         val selectedPiece = selectedPiecePosition
-        if (selectedPiecePosition != null) {
+        if (selectedPiece != null) {
 
-            val (fromRow, fromCol) = selectedPiecePosition!!
+            val (fromRow, fromCol) = selectedPiece
             val pieceToMove = game.gameState[fromRow][fromCol]
             game.gameState[toRow][toCol] = pieceToMove
             game.gameState[fromRow][fromCol] = null
-            selectedPiecePosition = null
 
+            selectedPiecePosition = null
             changePlayer()
         }
     }
@@ -91,8 +104,25 @@ class GameStateViewModel : ViewModel() {
         whiteMove = !whiteMove
     }
 
-    fun getWhitePlayer(): UserQueue {
-        return wPlayer
+//    fun getWhitePlayer(): UserQueue? {
+//        var gameState: GameFB? = null
+//        val docRef = db.collection("games").document(game.gameId)
+//        docRef.get().addOnSuccessListener { documentSnapshot ->
+//            gameState = documentSnapshot.toObject<GameFB>()!!
+//        }
+//        return gameState?.wPlayer
+//    }
+
+    fun getWhitePlayer(onSuccess: (UserQueue?) -> Unit) {
+        val docRef = db.collection("games").document(game.gameId)
+        docRef.get().addOnSuccessListener { documentSnapshot ->
+            val gameState = documentSnapshot.toObject<GameFB>()
+            onSuccess(gameState?.wPlayer)
+        }
+    }
+
+    fun getGameID(): String {
+        return game.gameId
     }
 
     fun getBoardState(): MutableList<MutableList<Figure?>> {
@@ -125,6 +155,17 @@ class GameStateViewModel : ViewModel() {
 
     fun isWhiteMove(): Boolean {
         return whiteMove
+    }
+
+    suspend fun getGameFromFirestore(): GameFB? {
+        val docRef = db.collection("games").document(game.gameId)
+
+        return try {
+            val documentSnapshot = docRef.get().await()
+            documentSnapshot.toObject(GameFB::class.java)
+        } catch (e: Exception) {
+            null
+        }
     }
 
     fun convertToFB(game: MutableList<MutableList<Figure?>>): MutableList<Figure> {
@@ -167,6 +208,14 @@ class GameStateViewModel : ViewModel() {
 
         return result
 
+    }
+
+    fun createGameId(user1: UserQueue, user2: UserQueue): String {
+        return if (user1.userId.hashCode() > user2.userId.hashCode()) {
+            user1.userId+"_"+user2.userId
+        } else {
+            user2.userId+"_"+user1.userId
+        }
     }
 
 }

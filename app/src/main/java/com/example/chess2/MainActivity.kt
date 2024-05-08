@@ -1,6 +1,7 @@
 package com.example.chess2
 
 import android.os.Bundle
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -10,6 +11,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.DisposableEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -22,6 +24,8 @@ import androidx.navigation.compose.composable
 import com.example.chess2.auth.SignInScreen
 import com.example.chess2.auth.SignInViewModel
 import com.example.chess2.auth.google.GoogleAuthUIClient
+import com.example.chess2.game.Game
+import com.example.chess2.game.GameFB
 import com.example.chess2.game.GameStateViewModel
 import com.example.chess2.game.figures.PlayerColor
 import com.example.chess2.temp.Chessboard
@@ -29,7 +33,10 @@ import com.example.chess2.temp.SearchGame
 import com.example.chess2.ui.theme.Chess2Theme
 import com.example.chess2.user.UserViewModel
 import com.google.android.gms.auth.api.identity.Identity
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
 class MainActivity : ComponentActivity() {
 
@@ -39,6 +46,10 @@ class MainActivity : ComponentActivity() {
             oneTapClient = Identity.getSignInClient(applicationContext)
         )
     }
+
+    private lateinit var firestoreListener: ListenerRegistration
+
+    val db = FirebaseFirestore.getInstance()
 
     val signInViewModel = SignInViewModel()
     val userViewModel = UserViewModel()
@@ -136,11 +147,7 @@ class MainActivity : ComponentActivity() {
                                     if (userViewModel.getSearchStatus()) {
                                         userViewModel.stopSearching()
                                     } else {
-                                        lifecycleScope.launch {
-                                            userViewModel.startSearching()
-                                            val match = userViewModel.findMatchingUsers()
-                                            userViewModel.onMatchingResult(match)
-                                        }
+                                        userViewModel.startSearching()
                                     }
                                 },
                                 signOutClick = {
@@ -158,12 +165,17 @@ class MainActivity : ComponentActivity() {
                         }
                         composable("game") {
 
-                            val currentUser = googleAuthUiClient.getSignedInUser()
-                            val currentPlayerColor = if (currentUser?.userId == gameViewModel.getWhitePlayer().userId)
-                                PlayerColor.WHITE
-                            else
-                                PlayerColor.BLACK
+                            val currentPlayerColor = PlayerColor.WHITE
 
+//                            val currentUser = googleAuthUiClient.getSignedInUser()
+//                            var currentPlayerColor: PlayerColor = PlayerColor.WHITE
+//                            gameViewModel.getWhitePlayer { whitePlayer ->
+//                                currentPlayerColor = if (currentUser?.userId == whitePlayer?.userId)
+//                                    PlayerColor.WHITE
+//                                else
+//                                    PlayerColor.BLACK
+//                            }
+//
                             Chessboard(
                                 boardState = gameViewModel.getBoardState(),
                                 selectedPiece = null,

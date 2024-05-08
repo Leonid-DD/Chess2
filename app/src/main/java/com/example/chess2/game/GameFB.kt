@@ -5,11 +5,12 @@ import com.example.chess2.user.User
 import com.example.chess2.user.UserQueue
 
 data class GameFB(
-    val gameState: MutableList<Figure>,
+    val gameId: String = "",
+    val gameState: MutableList<Figure> = mutableListOf(),
     //Change to User
-    val wPlayer: UserQueue,
-    val bPlayer: UserQueue
+    val wPlayer: UserQueue? = null,
+    val bPlayer: UserQueue? = null
 ) {
-
+    constructor() : this("", mutableListOf(), null, null)
 }
 
