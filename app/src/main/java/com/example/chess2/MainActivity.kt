@@ -137,7 +137,7 @@ class MainActivity : ComponentActivity() {
 
                                     //Получить доски пользователей из БД по ID из поиска
 
-                                    gameViewModel.initGame(state.users?.get(0)!!, state.users?.get(1)!!)
+                                    gameViewModel.initPlayers(state.users?.get(0)!!, state.users?.get(1)!!)
                                 }
                             }
 
@@ -165,17 +165,14 @@ class MainActivity : ComponentActivity() {
                         }
                         composable("game") {
 
-                            val currentPlayerColor = PlayerColor.WHITE
+                            gameViewModel.initGame()
 
-//                            val currentUser = googleAuthUiClient.getSignedInUser()
-//                            var currentPlayerColor: PlayerColor = PlayerColor.WHITE
-//                            gameViewModel.getWhitePlayer { whitePlayer ->
-//                                currentPlayerColor = if (currentUser?.userId == whitePlayer?.userId)
-//                                    PlayerColor.WHITE
-//                                else
-//                                    PlayerColor.BLACK
-//                            }
-//
+                            val currentUser = googleAuthUiClient.getSignedInUser()
+                            val currentPlayerColor = if (currentUser?.userId == gameViewModel.getWhitePlayer()?.userId)
+                                PlayerColor.WHITE
+                            else
+                                PlayerColor.BLACK
+
                             Chessboard(
                                 boardState = gameViewModel.getBoardState(),
                                 selectedPiece = null,
