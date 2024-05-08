@@ -1,15 +1,18 @@
 package com.example.chess2.game
 
 import android.util.Log
+import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import com.example.chess2.game.figures.Figure
 import com.example.chess2.game.figures.FigureName
 import com.example.chess2.game.figures.PlayerColor
 import com.example.chess2.user.UserQueue
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import kotlinx.coroutines.tasks.await
+import java.util.UUID
 
 
 class GameStateViewModel : ViewModel() {
@@ -19,6 +22,10 @@ class GameStateViewModel : ViewModel() {
     private lateinit var bPlayer: UserQueue
 
     private lateinit var game: Game
+    
+    private lateinit var gameId: String
+
+    private lateinit var users: Pair<UserQueue, UserQueue>
 
     private var selectedPiecePosition: Pair<Int, Int>? = null
 
@@ -30,14 +37,7 @@ class GameStateViewModel : ViewModel() {
 
     //Change to User
     fun initPlayers(user1: UserQueue, user2: UserQueue) {
-        val coin = (0..1).random()
-        if (coin == 0) {
-            wPlayer = user1
-            bPlayer = user2
-        } else {
-            wPlayer = user2
-            bPlayer = user1
-        }
+        users = Pair(user1, user2)
     }
 
     fun initGame() {
@@ -69,25 +69,31 @@ class GameStateViewModel : ViewModel() {
             }
         }
 
-        game = Game(createGameId(wPlayer, bPlayer), boardState, wPlayer, bPlayer)
+        game = Game(gameId, boardState, wPlayer, bPlayer)
 
-        gameDetails(wPlayer, bPlayer).set(GameFB(createGameId(wPlayer, bPlayer), convertToFB(boardState), wPlayer, bPlayer))
+        if (FirebaseAuth.getInstance().uid!! == wPlayer.userId) {
+            gameDetails().set(GameFB(gameId, convertToFB(boardState), wPlayer, bPlayer))
+        }
     }
 
-    private fun gameDetails(user1: UserQueue, user2: UserQueue): DocumentReference {
-        return db.collection("games").document(createGameId(user1, user2))
+    private fun gameDetails(): DocumentReference {
+        return db.collection("games").document(gameId)
     }
 
     fun selectChessPiece(coordinates: Pair<Int, Int>) {
         val row = coordinates.first
         val col = coordinates.second
+        Log.d("COORDINATEROW", row.toString())
+        Log.d("COORDINATECOL", col.toString())
         val figure = game.gameState[row][col]
+        Log.d("FIGURE", figure.toString())
         if (selectedPiecePosition != null) {
             // Piece is already selected, attempt to move it to the new position
             moveChessPiece(row, col)
         } else {
             // No piece is selected, select the piece at the given position
-            if (figure != null && isPlayerTurn(figure.color)) {
+            Log.d("CANMOVE", isPlayerTurn().toString())
+            if (figure != null && isPlayerTurn()) {
                 selectedPiecePosition = Pair(figure.row, figure.col)
             } else {
                 selectedPiecePosition = null
@@ -99,13 +105,20 @@ class GameStateViewModel : ViewModel() {
         val selectedPiece = selectedPiecePosition
         if (selectedPiece != null) {
             val (fromRow, fromCol) = selectedPiece
+            Log.d("FROMCOORDINATEROW", fromRow.toString())
+            Log.d("FROMCOORDINATECOL", fromCol.toString())
             val pieceToMove = game.gameState[fromRow][fromCol]
+            Log.d("PIECETOMOVE", pieceToMove.toString())
 
             // Check if the move is valid
             if (isValidMove(pieceToMove!!, fromRow, fromCol, toRow, toCol)) {
                 // Update local gameState
+                pieceToMove.col = toCol
+                pieceToMove.row = toRow
                 game.gameState[toRow][toCol] = pieceToMove
+                Log.d("ENDSQUARE", game.gameState[toRow][toCol].toString())
                 game.gameState[fromRow][fromCol] = null
+                Log.d("STARTSQUARE", game.gameState[fromRow][fromCol].toString())
 
                 // Clear selected piece position
                 selectedPiecePosition = null
@@ -146,7 +159,7 @@ class GameStateViewModel : ViewModel() {
     private fun updateGameStateInFirestore() {
         // Update the gameState in Firestore with the new state
         // You can access the Firestore database instance here and update the document accordingly
-        db.collection("games").document(game.gameId)
+        db.collection("games").document(gameId)
             .update("gameState", convertToFB(game.gameState))
     }
 
@@ -156,11 +169,14 @@ class GameStateViewModel : ViewModel() {
 
     suspend fun getWhitePlayer(): UserQueue? {
         var gameState: GameFB? = null
-        val docRef = db.collection("games").document(game.gameId)
+        val docRef = gameDetails()
+        Log.d("DOCUMENT", docRef.toString())
         try {
             val documentSnapshot = docRef.get().await()
+            Log.d("SNAPSHOT", documentSnapshot.toString())
             val deserializer = GameFBDeserializer()
             gameState = deserializer.deserialize(documentSnapshot)
+            Log.d("GAMESTATE", gameState.toString())
         } catch (e: Exception) {
             println("Error getting game state: $e")
         }
@@ -173,7 +189,7 @@ class GameStateViewModel : ViewModel() {
     }
 
     fun addGameStateListener() {
-        val docRef = db.collection("games").document(game.gameId)
+        val docRef = db.collection("games").document(gameId)
         docRef.addSnapshotListener { snapshot, exception ->
             if (exception != null) {
                 // Handle any errors
@@ -198,10 +214,11 @@ class GameStateViewModel : ViewModel() {
         }
     }
 
-    private fun isPlayerTurn(color: PlayerColor?): Boolean {
-        return if (whiteMove && color == PlayerColor.WHITE) {
+    private fun isPlayerTurn(): Boolean {
+        val currentUser = FirebaseAuth.getInstance().uid!!
+        return if (whiteMove && wPlayer.userId == currentUser) {
             true
-        } else if (!whiteMove && color == PlayerColor.BLACK) {
+        } else if (!whiteMove && bPlayer.userId == currentUser) {
             true
         } else {
             false

@@ -17,6 +17,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -200,14 +201,16 @@ class MainActivity : ComponentActivity() {
                             }
 
                             if (currentUser != null && whitePlayer != null) {
-                                Chessboard(
-                                    boardState = gameViewModel.getBoardState(),
-                                    selectedPiece = null,
-                                    currentPlayerColor = currentPlayerColor,
-                                    onPieceSelected = { coordinates -> gameViewModel.selectChessPiece(coordinates) },
-                                    userId = currentUser?.userId,
-                                    whiteUserId = whitePlayer?.userId
-                                )
+                                key(whitePlayer) {
+                                    Chessboard(
+                                        gameState = gameViewModel.getBoardState(),
+                                        selectedPiece = null,
+                                        currentPlayerColor = currentPlayerColor,
+                                        onPieceSelected = { coordinates -> gameViewModel.selectChessPiece(coordinates) },
+                                        userId = currentUser?.userId,
+                                        whiteUserId = whitePlayer?.userId
+                                    )
+                                }
                             } else {
                                 // Show a loading indicator or placeholder while data is being fetched
                                 // Alternatively, you can show an empty UI or handle this case according to your app's design

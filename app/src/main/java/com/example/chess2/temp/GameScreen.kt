@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -38,7 +40,7 @@ import java.util.Locale
 
 @Composable
 fun Chessboard(
-    boardState: List<List<Figure?>>,
+    gameState: List<List<Figure?>>,
     selectedPiece: Pair<Int, Int>?,
     //possibleMoves: List<Pair<Int, Int>>,
     currentPlayerColor: PlayerColor,
@@ -46,11 +48,13 @@ fun Chessboard(
     userId: String?,
     whiteUserId: String?
 ) {
+    val boardState by remember { mutableStateOf(gameState) }
+
     Column {
         val rows = if (currentPlayerColor == PlayerColor.WHITE) boardState.indices else boardState.indices.reversed()
         for (row in rows) {
             Row {
-                val cols = boardState[row].indices
+                val cols = if (currentPlayerColor == PlayerColor.WHITE) boardState[row].indices else boardState[row].indices.reversed()
                 for (col in cols) {
                     val figure = boardState[row][col]
                     //val isHighlighted = selectedPiece != null && (row to col) in possibleMoves
@@ -177,7 +181,7 @@ fun ChessboardPreview() {
     Chessboard(
         boardState,
         selectedPiece.value,
-        PlayerColor.WHITE,
+        PlayerColor.BLACK,
         onPieceSelected = { },
         null,
         null
