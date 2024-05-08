@@ -8,6 +8,7 @@ import com.example.chess2.game.figures.PlayerColor
 import com.example.chess2.user.UserQueue
 import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
 import kotlinx.coroutines.tasks.await
 
 
@@ -24,6 +25,8 @@ class GameStateViewModel : ViewModel() {
     private var whiteMove: Boolean = true
 
     val db = FirebaseFirestore.getInstance()
+
+    private var gameStateListener: ListenerRegistration? = null
 
     //Change to User
     fun initPlayers(user1: UserQueue, user2: UserQueue) {
@@ -75,57 +78,89 @@ class GameStateViewModel : ViewModel() {
         return db.collection("games").document(createGameId(user1, user2))
     }
 
-    fun selectChessPiece(figure: Figure?) {
-        val selectedPiece = figure
-        if (selectedPiece != null) {
-            selectedPiecePosition = Pair(figure.row, figure.col)
+    fun selectChessPiece(coordinates: Pair<Int, Int>) {
+        val row = coordinates.first
+        val col = coordinates.second
+        val figure = game.gameState[row][col]
+        if (selectedPiecePosition != null) {
+            // Piece is already selected, attempt to move it to the new position
+            moveChessPiece(row, col)
         } else {
-            selectedPiecePosition = null
+            // No piece is selected, select the piece at the given position
+            if (figure != null && isPlayerTurn(figure.color)) {
+                selectedPiecePosition = Pair(figure.row, figure.col)
+            } else {
+                selectedPiecePosition = null
+            }
         }
     }
 
-//    fun moveChessPiece(toRow: Int, toCol: Int) {
-//        val selectedPiece = selectedPiecePosition
-//        if (selectedPiece != null) {
-//
-//            val (fromRow, fromCol) = selectedPiece
-//            val pieceToMove = game.gameState[fromRow][fromCol]
-//            game.gameState[toRow][toCol] = pieceToMove
-//            game.gameState[fromRow][fromCol] = null
-//
-//            selectedPiecePosition = null
-//            changePlayer()
-//        }
-//    }
+    fun moveChessPiece(toRow: Int, toCol: Int) {
+        val selectedPiece = selectedPiecePosition
+        if (selectedPiece != null) {
+            val (fromRow, fromCol) = selectedPiece
+            val pieceToMove = game.gameState[fromRow][fromCol]
+
+            // Check if the move is valid
+            if (isValidMove(pieceToMove!!, fromRow, fromCol, toRow, toCol)) {
+                // Update local gameState
+                game.gameState[toRow][toCol] = pieceToMove
+                game.gameState[fromRow][fromCol] = null
+
+                // Clear selected piece position
+                selectedPiecePosition = null
+
+                // Change player turn
+                changePlayer()
+
+                // Update the Firestore database
+                updateGameStateInFirestore()
+
+                // Start or restart listening for game state updates
+                startListeningForGameState()
+            } else {
+                // Invalid move, handle accordingly (e.g., show error message)
+            }
+        }
+    }
+
+    private fun startListeningForGameState() {
+        // Remove existing listener if it exists
+        removeGameStateListener()
+
+        // Add new listener
+        addGameStateListener()
+    }
+
+    private fun removeGameStateListener() {
+        gameStateListener?.remove()
+        gameStateListener = null
+    }
+
+    private fun isValidMove(piece: Figure, fromRow: Int, fromCol: Int, toRow: Int, toCol: Int): Boolean {
+        // Add your logic to validate the move based on the piece type and game rules
+        // For now, you can return true to allow any move
+        return true
+    }
+
+    private fun updateGameStateInFirestore() {
+        // Update the gameState in Firestore with the new state
+        // You can access the Firestore database instance here and update the document accordingly
+        db.collection("games").document(game.gameId)
+            .update("gameState", convertToFB(game.gameState))
+    }
 
     fun changePlayer() {
         whiteMove = !whiteMove
     }
 
-//    fun getWhitePlayer(): UserQueue? {
-//        var gameState: GameFB? = null
-//        val docRef = db.collection("games").document(game.gameId)
-//        docRef.get().addOnCompleteListener { task ->
-//            if (task.isSuccessful) {
-//                val documentSnapshot = task.result
-//                if (documentSnapshot != null) {
-//                    gameState = documentSnapshot.toObject(GameFB::class.java)
-//                }
-//            }
-//        }
-//        return gameState?.wPlayer
-//    }
-
     suspend fun getWhitePlayer(): UserQueue? {
         var gameState: GameFB? = null
         val docRef = db.collection("games").document(game.gameId)
-        Log.d("DOCUMENT", docRef.toString())
         try {
             val documentSnapshot = docRef.get().await()
-            Log.d("SNAPSHOT", documentSnapshot.toString())
             val deserializer = GameFBDeserializer()
             gameState = deserializer.deserialize(documentSnapshot)
-            Log.d("GAMESTATE", gameState.toString())
         } catch (e: Exception) {
             println("Error getting game state: $e")
         }
@@ -133,40 +168,44 @@ class GameStateViewModel : ViewModel() {
         return gameState?.wPlayer
     }
 
-    fun getGameID(): String {
-        return game.gameId
-    }
-
     fun getBoardState(): MutableList<MutableList<Figure?>> {
         return game.gameState
     }
 
-//    fun getBoardState1() = callbackFlow {
-//
-//        val collection = db.collection("games")
-//
-//        val snapshotListener = collection.addSnapshotListener { value, error ->
-//            val response = if (error = null) {
-//                OnSuccess(value)
-//            } else {
-//                OnError(error)
-//            }
-//
-//            offer(response)
-//        }
-//
-//        awaitClose {
-//            snapshotListener.remove()
-//        }
-//
-//    }
+    fun addGameStateListener() {
+        val docRef = db.collection("games").document(game.gameId)
+        docRef.addSnapshotListener { snapshot, exception ->
+            if (exception != null) {
+                // Handle any errors
+                println("Error fetching game state: $exception")
+                return@addSnapshotListener
+            }
 
-    fun getSelectedPiece(): Pair<Int, Int>? {
-        return selectedPiecePosition
+            if (snapshot != null && snapshot.exists()) {
+                // Document exists, update game state
+                val deserializer = GameFBDeserializer()
+                val updatedGameState = deserializer.deserialize(snapshot).gameState
+                if (updatedGameState != null) {
+                    // Update local game state
+                    game.gameState = convertFromFB(updatedGameState)
+                    changePlayer()
+                    // Notify observers or update UI
+                    // For example, you can trigger a LiveData update or call a method to update the UI
+                }
+            } else {
+                println("Current data: null")
+            }
+        }
     }
 
-    fun isWhiteMove(): Boolean {
-        return whiteMove
+    private fun isPlayerTurn(color: PlayerColor?): Boolean {
+        return if (whiteMove && color == PlayerColor.WHITE) {
+            true
+        } else if (!whiteMove && color == PlayerColor.BLACK) {
+            true
+        } else {
+            false
+        }
     }
 
     fun convertToFB(game: MutableList<MutableList<Figure?>>): MutableList<Figure> {

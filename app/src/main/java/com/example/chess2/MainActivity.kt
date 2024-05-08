@@ -204,7 +204,7 @@ class MainActivity : ComponentActivity() {
                                     boardState = gameViewModel.getBoardState(),
                                     selectedPiece = null,
                                     currentPlayerColor = currentPlayerColor,
-                                    onPieceSelected = { figure -> gameViewModel.selectChessPiece(figure) },
+                                    onPieceSelected = { coordinates -> gameViewModel.selectChessPiece(coordinates) },
                                     userId = currentUser?.userId,
                                     whiteUserId = whitePlayer?.userId
                                 )

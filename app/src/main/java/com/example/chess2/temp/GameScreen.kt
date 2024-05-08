@@ -42,7 +42,7 @@ fun Chessboard(
     selectedPiece: Pair<Int, Int>?,
     //possibleMoves: List<Pair<Int, Int>>,
     currentPlayerColor: PlayerColor,
-    onPieceSelected: (Figure?) -> Unit,
+    onPieceSelected: (Pair<Int, Int>) -> Unit,
     userId: String?,
     whiteUserId: String?
 ) {
@@ -60,7 +60,7 @@ fun Chessboard(
                         isSelected = selectedPiece?.first == row && selectedPiece.second == col,
                         //isHighlighted = isHighlighted,
                         onClick = {
-                            onPieceSelected(figure)
+                            onPieceSelected(Pair(row, col))
                         }
                     )
                 }
