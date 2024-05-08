@@ -22,7 +22,7 @@ class GameStateViewModel : ViewModel() {
     private lateinit var bPlayer: UserQueue
 
     private lateinit var game: Game
-    
+
     private lateinit var gameId: String
 
     private lateinit var users: Pair<UserQueue, UserQueue>
@@ -38,15 +38,7 @@ class GameStateViewModel : ViewModel() {
     //Change to User
     fun initPlayers(user1: UserQueue, user2: UserQueue) {
         users = Pair(user1, user2)
-        val coin = (0..1).random()
-        if (coin == 0) {
-            wPlayer = user1
-            bPlayer = user2
-        } else {
-            wPlayer = user2
-            bPlayer = user1
-        }
-        gameId = createGameId(wPlayer, bPlayer)
+        gameId = createGameId(user1, user2)
     }
 
     fun initGame() {
@@ -78,11 +70,39 @@ class GameStateViewModel : ViewModel() {
             }
         }
 
-        game = Game(gameId, boardState, wPlayer, bPlayer)
+        var user1: UserQueue
+        var user2: UserQueue
 
-        if (FirebaseAuth.getInstance().uid!! == wPlayer.userId) {
-            gameDetails().set(GameFB(gameId, convertToFB(boardState), wPlayer, bPlayer))
+        val random = (0..1).random()
+        if (random == 0) {
+            user1 = users.first
+            user2 = users.second
+        } else {
+            user1 = users.second
+            user2 = users.first
         }
+
+        game = Game(gameId, boardState, user1, user2)
+
+        gameDetails().set(GameFB(gameId, convertToFB(boardState), user1, user2))
+
+    }
+
+    suspend fun getPlayersFromFirestore() {
+
+        var gameState: GameFB? = null
+
+        val docRef = gameDetails()
+        try {
+            val documentSnapshot = docRef.get().await()
+            val deserializer = GameFBDeserializer()
+            gameState = deserializer.deserialize(documentSnapshot)
+        } catch (e: Exception) {
+            println("Error getting game state: $e")
+        }
+
+        wPlayer = gameState?.wPlayer!!
+        bPlayer = gameState?.bPlayer!!
     }
 
     private fun gameDetails(): DocumentReference {
@@ -129,6 +149,8 @@ class GameStateViewModel : ViewModel() {
                 game.gameState[fromRow][fromCol] = null
                 Log.d("STARTSQUARE", game.gameState[fromRow][fromCol].toString())
 
+                Log.d("RESULTSTATE", game.gameState.toString())
+
                 // Clear selected piece position
                 selectedPiecePosition = null
 
@@ -159,7 +181,13 @@ class GameStateViewModel : ViewModel() {
         gameStateListener = null
     }
 
-    private fun isValidMove(piece: Figure, fromRow: Int, fromCol: Int, toRow: Int, toCol: Int): Boolean {
+    private fun isValidMove(
+        piece: Figure,
+        fromRow: Int,
+        fromCol: Int,
+        toRow: Int,
+        toCol: Int
+    ): Boolean {
         // Add your logic to validate the move based on the piece type and game rules
         // For now, you can return true to allow any move
         return true
@@ -252,7 +280,7 @@ class GameStateViewModel : ViewModel() {
 
     fun convertFromFB(gameFB: MutableList<Figure>): MutableList<MutableList<Figure?>> {
 
-        val result = MutableList (8) {
+        val result = MutableList(8) {
             MutableList<Figure?>(8) {
                 null
             }
@@ -278,9 +306,9 @@ class GameStateViewModel : ViewModel() {
 
     fun createGameId(user1: UserQueue, user2: UserQueue): String {
         return if (user1.userId.hashCode() > user2.userId.hashCode()) {
-            user1.userId+"_"+user2.userId
+            user1.userId + "_" + user2.userId
         } else {
-            user2.userId+"_"+user1.userId
+            user2.userId + "_" + user1.userId
         }
     }
 

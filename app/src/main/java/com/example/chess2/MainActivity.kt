@@ -177,11 +177,13 @@ class MainActivity : ComponentActivity() {
 
                             gameViewModel.initGame()
 
+                            LaunchedEffect(Unit) {
+                                gameViewModel.getPlayersFromFirestore()
+                            }
+
                             var currentUser: UserData? by remember { mutableStateOf(null) }
                             var whitePlayer: UserQueue? by remember { mutableStateOf(null) }
                             var currentPlayerColor by remember { mutableStateOf(PlayerColor.BLACK) }
-
-                            val coroutineScope = rememberCoroutineScope()
 
                             LaunchedEffect(Unit) {
                                 // Fetch current user data

@@ -12,6 +12,4 @@ data class Game(
     //Change to User
     val wPlayer: UserQueue,
     val bPlayer: UserQueue
-) {
-
-}
+) {}
