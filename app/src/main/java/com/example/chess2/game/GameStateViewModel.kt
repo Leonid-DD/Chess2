@@ -38,6 +38,15 @@ class GameStateViewModel : ViewModel() {
     //Change to User
     fun initPlayers(user1: UserQueue, user2: UserQueue) {
         users = Pair(user1, user2)
+        val coin = (0..1).random()
+        if (coin == 0) {
+            wPlayer = user1
+            bPlayer = user2
+        } else {
+            wPlayer = user2
+            bPlayer = user1
+        }
+        gameId = createGameId(wPlayer, bPlayer)
     }
 
     fun initGame() {
