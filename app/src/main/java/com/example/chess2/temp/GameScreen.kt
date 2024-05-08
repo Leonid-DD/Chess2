@@ -9,7 +9,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -19,8 +22,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.res.TypedArrayUtils.getResourceId
 import com.example.chess2.R
 import com.example.chess2.game.figures.Figure
@@ -36,10 +42,12 @@ fun Chessboard(
     selectedPiece: Pair<Int, Int>?,
     //possibleMoves: List<Pair<Int, Int>>,
     currentPlayerColor: PlayerColor,
-    onPieceSelected: (Figure?) -> Unit
+    onPieceSelected: (Figure?) -> Unit,
+    userId: String?,
+    whiteUserId: String?
 ) {
     Column {
-        val rows = boardState.indices
+        val rows = if (currentPlayerColor == PlayerColor.WHITE) boardState.indices else boardState.indices.reversed()
         for (row in rows) {
             Row {
                 val cols = boardState[row].indices
@@ -58,6 +66,27 @@ fun Chessboard(
                 }
             }
         }
+        Spacer(modifier = Modifier.height(20.dp))
+        Text(
+            text = currentPlayerColor.toString(),
+            textAlign = TextAlign.Center,
+            fontSize = 36.sp,
+            fontWeight = FontWeight.SemiBold
+        )
+        Spacer(modifier = Modifier.height(20.dp))
+        Text(
+            text = if (userId != null) userId else "none",
+            textAlign = TextAlign.Center,
+            fontSize = 36.sp,
+            fontWeight = FontWeight.SemiBold
+        )
+        Spacer(modifier = Modifier.height(20.dp))
+        Text(
+            text = if (whiteUserId != null) whiteUserId else "none",
+            textAlign = TextAlign.Center,
+            fontSize = 36.sp,
+            fontWeight = FontWeight.SemiBold
+        )
     }
 }
 
@@ -149,6 +178,8 @@ fun ChessboardPreview() {
         boardState,
         selectedPiece.value,
         PlayerColor.WHITE,
-        onPieceSelected = { }
+        onPieceSelected = { },
+        null,
+        null
     )
 }

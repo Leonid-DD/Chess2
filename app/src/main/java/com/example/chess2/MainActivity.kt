@@ -1,5 +1,6 @@
 package com.example.chess2
 
+import android.annotation.SuppressLint
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
@@ -11,10 +12,15 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.DisposableEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.rememberNavController
@@ -24,6 +30,7 @@ import androidx.navigation.compose.composable
 import com.example.chess2.auth.SignInScreen
 import com.example.chess2.auth.SignInViewModel
 import com.example.chess2.auth.google.GoogleAuthUIClient
+import com.example.chess2.auth.google.UserData
 import com.example.chess2.game.Game
 import com.example.chess2.game.GameFB
 import com.example.chess2.game.GameStateViewModel
@@ -31,6 +38,7 @@ import com.example.chess2.game.figures.PlayerColor
 import com.example.chess2.temp.Chessboard
 import com.example.chess2.temp.SearchGame
 import com.example.chess2.ui.theme.Chess2Theme
+import com.example.chess2.user.UserQueue
 import com.example.chess2.user.UserViewModel
 import com.google.android.gms.auth.api.identity.Identity
 import com.google.firebase.firestore.FirebaseFirestore
@@ -55,6 +63,7 @@ class MainActivity : ComponentActivity() {
     val userViewModel = UserViewModel()
     val gameViewModel = GameStateViewModel()
 
+    @SuppressLint("CoroutineCreationDuringComposition")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
@@ -167,18 +176,43 @@ class MainActivity : ComponentActivity() {
 
                             gameViewModel.initGame()
 
-                            val currentUser = googleAuthUiClient.getSignedInUser()
-                            val currentPlayerColor = if (currentUser?.userId == gameViewModel.getWhitePlayer()?.userId)
-                                PlayerColor.WHITE
-                            else
-                                PlayerColor.BLACK
+                            var currentUser: UserData? by remember { mutableStateOf(null) }
+                            var whitePlayer: UserQueue? by remember { mutableStateOf(null) }
+                            var currentPlayerColor by remember { mutableStateOf(PlayerColor.BLACK) }
 
-                            Chessboard(
-                                boardState = gameViewModel.getBoardState(),
-                                selectedPiece = null,
-                                currentPlayerColor = currentPlayerColor,
-                                onPieceSelected = { figure -> gameViewModel.selectChessPiece(figure) }
-                            )
+                            val coroutineScope = rememberCoroutineScope()
+
+                            LaunchedEffect(Unit) {
+                                // Fetch current user data
+                                currentUser = googleAuthUiClient.getSignedInUser()
+
+                                // Fetch white player data in a coroutine
+                                try {
+                                    val player = gameViewModel.getWhitePlayer()
+                                    whitePlayer = player
+                                    currentPlayerColor = if (currentUser?.userId == whitePlayer?.userId)
+                                        PlayerColor.WHITE
+                                    else
+                                        PlayerColor.BLACK
+                                } catch (e: Exception) {
+                                    Log.d("Error", e.toString())
+                                }
+                            }
+
+                            if (currentUser != null && whitePlayer != null) {
+                                Chessboard(
+                                    boardState = gameViewModel.getBoardState(),
+                                    selectedPiece = null,
+                                    currentPlayerColor = currentPlayerColor,
+                                    onPieceSelected = { figure -> gameViewModel.selectChessPiece(figure) },
+                                    userId = currentUser?.userId,
+                                    whiteUserId = whitePlayer?.userId
+                                )
+                            } else {
+                                // Show a loading indicator or placeholder while data is being fetched
+                                // Alternatively, you can show an empty UI or handle this case according to your app's design
+                                Text("Loading...")
+                            }
 
                         }
                     }

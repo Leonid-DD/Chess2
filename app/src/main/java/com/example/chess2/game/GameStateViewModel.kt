@@ -1,5 +1,6 @@
 package com.example.chess2.game
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import com.example.chess2.game.figures.Figure
 import com.example.chess2.game.figures.FigureName
@@ -101,17 +102,34 @@ class GameStateViewModel : ViewModel() {
         whiteMove = !whiteMove
     }
 
-    fun getWhitePlayer(): UserQueue? {
+//    fun getWhitePlayer(): UserQueue? {
+//        var gameState: GameFB? = null
+//        val docRef = db.collection("games").document(game.gameId)
+//        docRef.get().addOnCompleteListener { task ->
+//            if (task.isSuccessful) {
+//                val documentSnapshot = task.result
+//                if (documentSnapshot != null) {
+//                    gameState = documentSnapshot.toObject(GameFB::class.java)
+//                }
+//            }
+//        }
+//        return gameState?.wPlayer
+//    }
+
+    suspend fun getWhitePlayer(): UserQueue? {
         var gameState: GameFB? = null
         val docRef = db.collection("games").document(game.gameId)
-        docRef.get().addOnCompleteListener { task ->
-            if (task.isSuccessful) {
-                val documentSnapshot = task.result
-                if (documentSnapshot != null) {
-                    gameState = documentSnapshot.toObject(GameFB::class.java)
-                }
-            }
+        Log.d("DOCUMENT", docRef.toString())
+        try {
+            val documentSnapshot = docRef.get().await()
+            Log.d("SNAPSHOT", documentSnapshot.toString())
+            val deserializer = GameFBDeserializer()
+            gameState = deserializer.deserialize(documentSnapshot)
+            Log.d("GAMESTATE", gameState.toString())
+        } catch (e: Exception) {
+            println("Error getting game state: $e")
         }
+
         return gameState?.wPlayer
     }
 
