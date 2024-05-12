@@ -44,6 +44,7 @@ import com.example.chess2.user.UserViewModel
 import com.google.android.gms.auth.api.identity.Identity
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
@@ -178,6 +179,7 @@ class MainActivity : ComponentActivity() {
                             gameViewModel.initGame()
 
                             LaunchedEffect(Unit) {
+                                delay(2000)
                                 gameViewModel.getPlayersFromFirestore()
                             }
 
@@ -186,6 +188,7 @@ class MainActivity : ComponentActivity() {
                             var currentPlayerColor by remember { mutableStateOf(PlayerColor.BLACK) }
 
                             LaunchedEffect(Unit) {
+                                delay(2000)
                                 // Fetch current user data
                                 currentUser = googleAuthUiClient.getSignedInUser()
 
@@ -209,7 +212,7 @@ class MainActivity : ComponentActivity() {
                                         selectedPiece = null,
                                         currentPlayerColor = currentPlayerColor,
                                         onPieceSelected = { coordinates -> gameViewModel.selectChessPiece(coordinates) },
-                                        userId = currentUser?.userId,
+                                        userId = gameViewModel.getCurrentPlayers(),
                                         whiteUserId = whitePlayer?.userId
                                     )
                                 }

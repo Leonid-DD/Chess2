@@ -103,6 +103,8 @@ class GameStateViewModel : ViewModel() {
 
         wPlayer = gameState?.wPlayer!!
         bPlayer = gameState?.bPlayer!!
+        Log.d("WPLAYER", wPlayer.toString())
+        Log.d("BPLAYER", bPlayer.toString())
     }
 
     private fun gameDetails(): DocumentReference {
@@ -310,6 +312,10 @@ class GameStateViewModel : ViewModel() {
         } else {
             user2.userId + "_" + user1.userId
         }
+    }
+
+    fun getCurrentPlayers(): String {
+        return "b = {${bPlayer.userId}} : w = {${wPlayer.userId}}"
     }
 
 }
