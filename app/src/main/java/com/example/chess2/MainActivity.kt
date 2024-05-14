@@ -16,6 +16,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.DisposableEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -178,7 +179,7 @@ class MainActivity : ComponentActivity() {
 
                             gameViewModel.initGame()
 
-                            val gameState by gameViewModel._gameState
+                            //val gameState by gameViewModel.gameState.collectAsStateWithLifecycle()
 
                             LaunchedEffect(Unit) {
                                 delay(2000)
@@ -210,12 +211,12 @@ class MainActivity : ComponentActivity() {
                             if (currentUser != null && whitePlayer != null) {
                                 key(whitePlayer) {
                                     Chessboard(
-                                        gameState = gameState,
+                                        gameState = gameViewModel.getBoardState(),
                                         selectedPiece = null,
                                         currentPlayerColor = currentPlayerColor,
                                         onPieceSelected = { coordinates -> gameViewModel.selectChessPiece(coordinates) },
                                         userId = gameViewModel.getCurrentPlayers(),
-                                        whiteUserId = whitePlayer?.userId
+                                        whiteUserId = whitePlayer!!.userId
                                     )
                                 }
                             } else {

@@ -12,13 +12,16 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.tasks.await
 import java.util.UUID
 
 
 class GameStateViewModel : ViewModel() {
 
-    val _gameState = mutableStateOf<MutableList<MutableList<Figure?>>>(mutableListOf())
+//    private val _gameState = MutableStateFlow(baseState())
+//    val gameState = _gameState.asStateFlow()
 
     //Change to User
     private lateinit var wPlayer: UserQueue
@@ -42,36 +45,11 @@ class GameStateViewModel : ViewModel() {
     fun initPlayers(user1: UserQueue, user2: UserQueue) {
         users = Pair(user1, user2)
         gameId = createGameId(user1, user2)
+        Log.d("INIT", "Players initialized")
     }
 
     fun initGame() {
-        val boardState = MutableList(8) { row ->
-            MutableList(8) { col ->
-                when (row) {
-                    0 -> when (col) {
-                        0, 7 -> Figure(row, col, PlayerColor.BLACK, FigureName.ROOK)
-                        1, 6 -> Figure(row, col, PlayerColor.BLACK, FigureName.KNIGHT)
-                        2, 5 -> Figure(row, col, PlayerColor.BLACK, FigureName.BISHOP)
-                        3 -> Figure(row, col, PlayerColor.BLACK, FigureName.QUEEN)
-                        4 -> Figure(row, col, PlayerColor.BLACK, FigureName.KING)
-                        else -> null
-                    }
-
-                    1 -> Figure(row, col, PlayerColor.BLACK, FigureName.PAWN)
-                    6 -> Figure(row, col, PlayerColor.WHITE, FigureName.PAWN)
-                    7 -> when (col) {
-                        0, 7 -> Figure(row, col, PlayerColor.WHITE, FigureName.ROOK)
-                        1, 6 -> Figure(row, col, PlayerColor.WHITE, FigureName.KNIGHT)
-                        2, 5 -> Figure(row, col, PlayerColor.WHITE, FigureName.BISHOP)
-                        3 -> Figure(row, col, PlayerColor.WHITE, FigureName.QUEEN)
-                        4 -> Figure(row, col, PlayerColor.WHITE, FigureName.KING)
-                        else -> null
-                    }
-
-                    else -> null
-                }
-            }
-        }
+        val boardState = baseState()
 
         var user1: UserQueue
         var user2: UserQueue
@@ -87,7 +65,11 @@ class GameStateViewModel : ViewModel() {
 
         game = Game(gameId, boardState, user1, user2)
 
+        //_gameState.value = game.gameState
+
         gameDetails().set(GameFB(gameId, convertToFB(boardState), user1, user2))
+
+        Log.d("INIT", "Game initialized")
 
     }
 
@@ -192,20 +174,22 @@ class GameStateViewModel : ViewModel() {
     }
 
     private fun updateGameState(fromRow: Int, fromCol: Int, toRow: Int, toCol: Int) {
-        val pieceToMove = _gameState.value[fromRow][fromCol]
-        _gameState.value[toRow][toCol] = pieceToMove
-        Log.d("ENDSQUARE", _gameState.value[toRow][toCol].toString())
-        _gameState.value[fromRow][fromCol] = null
-        Log.d("STARTSQUARE", _gameState.value[fromRow][fromCol].toString())
-        Log.d("RESULTSTATE", _gameState.value.toString())
-        _gameState.value = _gameState.value
+        val pieceToMove = game.gameState[fromRow][fromCol]
+        pieceToMove?.row = toRow
+        pieceToMove?.col = toCol
+        game.gameState[toRow][toCol] = pieceToMove
+        Log.d("ENDSQUARE", game.gameState[toRow][toCol].toString())
+        game.gameState[fromRow][fromCol] = null
+        Log.d("STARTSQUARE", game.gameState[fromRow][fromCol].toString())
+        Log.d("RESULTSTATE", game.gameState.toString())
+        //_gameState.value = game.gameState
     }
 
     private fun updateGameStateInFirestore() {
         // Update the gameState in Firestore with the new state
         // You can access the Firestore database instance here and update the document accordingly
         db.collection("games").document(gameId)
-            .update("gameState", convertToFB(_gameState.value))
+            .update("gameState", convertToFB(game.gameState))
     }
 
     fun changePlayer() {
@@ -230,7 +214,7 @@ class GameStateViewModel : ViewModel() {
     }
 
     fun getBoardState(): MutableList<MutableList<Figure?>> {
-        return _gameState.value
+        return game.gameState
     }
 
     fun addGameStateListener() {
@@ -248,7 +232,7 @@ class GameStateViewModel : ViewModel() {
                 val updatedGameState = deserializer.deserialize(snapshot).gameState
                 if (updatedGameState != null) {
                     // Update local game state
-                    _gameState.value = convertFromFB(updatedGameState)
+                    game.gameState = convertFromFB(updatedGameState)
                     changePlayer()
                     // Notify observers or update UI
                     // For example, you can trigger a LiveData update or call a method to update the UI
@@ -322,6 +306,36 @@ class GameStateViewModel : ViewModel() {
 
     fun getCurrentPlayers(): String {
         return "b = {${bPlayer.userId}} : w = {${wPlayer.userId}}"
+    }
+
+    fun baseState(): MutableList<MutableList<Figure?>> {
+        return MutableList(8) { row ->
+            MutableList(8) { col ->
+                when (row) {
+                    0 -> when (col) {
+                        0, 7 -> Figure(row, col, PlayerColor.BLACK, FigureName.ROOK)
+                        1, 6 -> Figure(row, col, PlayerColor.BLACK, FigureName.KNIGHT)
+                        2, 5 -> Figure(row, col, PlayerColor.BLACK, FigureName.BISHOP)
+                        3 -> Figure(row, col, PlayerColor.BLACK, FigureName.QUEEN)
+                        4 -> Figure(row, col, PlayerColor.BLACK, FigureName.KING)
+                        else -> null
+                    }
+
+                    1 -> Figure(row, col, PlayerColor.BLACK, FigureName.PAWN)
+                    6 -> Figure(row, col, PlayerColor.WHITE, FigureName.PAWN)
+                    7 -> when (col) {
+                        0, 7 -> Figure(row, col, PlayerColor.WHITE, FigureName.ROOK)
+                        1, 6 -> Figure(row, col, PlayerColor.WHITE, FigureName.KNIGHT)
+                        2, 5 -> Figure(row, col, PlayerColor.WHITE, FigureName.BISHOP)
+                        3 -> Figure(row, col, PlayerColor.WHITE, FigureName.QUEEN)
+                        4 -> Figure(row, col, PlayerColor.WHITE, FigureName.KING)
+                        else -> null
+                    }
+
+                    else -> null
+                }
+            }
+        }
     }
 
 }
