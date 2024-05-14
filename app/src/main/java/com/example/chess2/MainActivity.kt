@@ -39,6 +39,7 @@ import com.example.chess2.game.GameStateViewModel
 import com.example.chess2.game.figures.Figure
 import com.example.chess2.game.figures.PlayerColor
 import com.example.chess2.temp.Chessboard
+import com.example.chess2.temp.GameScreen
 import com.example.chess2.temp.SearchGame
 import com.example.chess2.ui.theme.Chess2Theme
 import com.example.chess2.user.UserQueue
@@ -189,8 +190,7 @@ class MainActivity : ComponentActivity() {
 
                             var currentUser: UserData? by remember { mutableStateOf(null) }
                             var whitePlayer: UserQueue? by remember { mutableStateOf(null) }
-                            var currentPlayerColor by remember { mutableStateOf(PlayerColor.BLACK) }
-                            var gameState by remember { mutableStateOf(emptyList<List<Figure?>>()) }
+                            //var currentPlayerColor by remember { mutableStateOf(PlayerColor.BLACK) }
 
                             LaunchedEffect(Unit) {
                                 delay(2000)
@@ -199,14 +199,12 @@ class MainActivity : ComponentActivity() {
 
                                 // Fetch white player data in a coroutine
                                 try {
-                                    val player = gameViewModel.getWhitePlayer()
+                                    val player = gameViewModel.getWhitePlayerFromFB()
                                     whitePlayer = player
-                                    currentPlayerColor = if (currentUser?.userId == whitePlayer?.userId)
-                                        PlayerColor.WHITE
-                                    else
-                                        PlayerColor.BLACK
-
-                                    gameState = gameViewModel.getGameStateFromFB()
+//                                    currentPlayerColor = if (currentUser?.userId == whitePlayer?.userId)
+//                                        PlayerColor.WHITE
+//                                    else
+//                                        PlayerColor.BLACK
                                 } catch (e: Exception) {
                                     Log.d("Error", e.toString())
                                 }
@@ -214,14 +212,8 @@ class MainActivity : ComponentActivity() {
 
                             if (currentUser != null && whitePlayer != null) {
                                 key(whitePlayer) {
-                                    Log.d("PASSEDSTATE", gameState.toString())
-                                    Chessboard(
-                                        gameState = gameState,
-                                        currentPlayerColor = currentPlayerColor,
-                                        onPieceSelected = { coordinates -> gameViewModel.selectChessPiece(coordinates) },
-                                        userId = gameViewModel.getCurrentPlayers(),
-                                        whiteUserId = whitePlayer?.userId
-                                    )
+                                    Log.d("PASSEDSTATE", gameViewModel.gameState.value.state.toString())
+                                    GameScreen()
                                 }
                             } else {
                                 // Show a loading indicator or placeholder while data is being fetched

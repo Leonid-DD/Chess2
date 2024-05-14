@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -32,42 +33,38 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.res.TypedArrayUtils.getResourceId
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.chess2.R
+import com.example.chess2.game.GameStateViewModel
 import com.example.chess2.game.figures.Figure
 import com.example.chess2.game.figures.FigureName
 import com.example.chess2.game.figures.PlayerColor
 import com.example.chess2.ui.theme.Chess2Theme
+import com.google.firebase.auth.FirebaseAuth
 import java.text.FieldPosition
 import java.util.Locale
 
 
 @Composable
-fun GameScreen(modifier: Modifier = Modifier) {
+fun GameScreen(
+    gameStateViewModel: GameStateViewModel = viewModel()
+) {
 
-    var gameState = rememberSaveable { mutableStateListOf<Figure>() }
+    val gameState by gameStateViewModel.gameState.collectAsState()
 
+    val currentUser = FirebaseAuth.getInstance().uid
+    val whitePlayer = gameStateViewModel.getWhitePlayer().userId
 
-
-    Spacer(modifier = Modifier.height(20.dp))
-    Text(
-        text = currentPlayerColor.toString(),
-        textAlign = TextAlign.Center,
-        fontSize = 36.sp,
-        fontWeight = FontWeight.SemiBold
-    )
-    Spacer(modifier = Modifier.height(20.dp))
-    Text(
-        text = if (userId != null) userId else "none",
-        textAlign = TextAlign.Center,
-        fontSize = 36.sp,
-        fontWeight = FontWeight.SemiBold
-    )
-    Spacer(modifier = Modifier.height(20.dp))
-    Text(
-        text = if (whiteUserId != null) whiteUserId else "none",
-        textAlign = TextAlign.Center,
-        fontSize = 36.sp,
-        fontWeight = FontWeight.SemiBold
+    Chessboard(
+        gameState = gameState.state,
+        currentPlayerColor =
+        if (currentUser == whitePlayer)
+            PlayerColor.WHITE
+        else
+            PlayerColor.BLACK,
+        onPieceSelected = { coordinates -> gameStateViewModel.selectChessPiece(coordinates) },
+        userId = currentUser,
+        whiteUserId = whitePlayer
     )
 }
 
@@ -108,6 +105,27 @@ fun Chessboard(
                 }
             }
         }
+        Spacer(modifier = Modifier.height(20.dp))
+        Text(
+            text = currentPlayerColor.toString(),
+            textAlign = TextAlign.Center,
+            fontSize = 36.sp,
+            fontWeight = FontWeight.SemiBold
+        )
+        Spacer(modifier = Modifier.height(20.dp))
+        Text(
+            text = if (userId != null) userId else "none",
+            textAlign = TextAlign.Center,
+            fontSize = 36.sp,
+            fontWeight = FontWeight.SemiBold
+        )
+        Spacer(modifier = Modifier.height(20.dp))
+        Text(
+            text = if (whiteUserId != null) whiteUserId else "none",
+            textAlign = TextAlign.Center,
+            fontSize = 36.sp,
+            fontWeight = FontWeight.SemiBold
+        )
     }
 }
 

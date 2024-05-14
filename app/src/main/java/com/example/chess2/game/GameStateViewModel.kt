@@ -21,6 +21,8 @@ import java.util.UUID
 
 class GameStateViewModel : ViewModel() {
 
+    //game.gameState -> _gameState.value.state
+    
     //Game State
     private val _gameState = MutableStateFlow(GameState())
     val gameState: StateFlow<GameState> = _gameState.asStateFlow()
@@ -129,7 +131,7 @@ class GameStateViewModel : ViewModel() {
         val col = coordinates.second
         Log.d("COORDINATEROW", row.toString())
         Log.d("COORDINATECOL", col.toString())
-        val figure = game.gameState[row][col]
+        val figure = _gameState.value.state[row][col]
         Log.d("FIGURE", figure.toString())
         if (selectedPiecePosition != null) {
             // Piece is already selected, attempt to move it to the new position
@@ -151,7 +153,7 @@ class GameStateViewModel : ViewModel() {
             val (fromRow, fromCol) = selectedPiece
             Log.d("FROMCOORDINATEROW", fromRow.toString())
             Log.d("FROMCOORDINATECOL", fromCol.toString())
-            val pieceToMove = game.gameState[fromRow][fromCol]
+            val pieceToMove = _gameState.value.state[fromRow][fromCol]
             Log.d("PIECETOMOVE", pieceToMove.toString())
 
             // Check if the move is valid
@@ -202,29 +204,28 @@ class GameStateViewModel : ViewModel() {
     }
 
     private fun updateGameState(fromRow: Int, fromCol: Int, toRow: Int, toCol: Int) {
-        val pieceToMove = game.gameState[fromRow][fromCol]
+        val pieceToMove = _gameState.value.state[fromRow][fromCol]
         pieceToMove?.row = toRow
         pieceToMove?.col = toCol
-        game.gameState[toRow][toCol] = pieceToMove
-        Log.d("ENDSQUARE", game.gameState[toRow][toCol].toString())
-        game.gameState[fromRow][fromCol] = null
-        Log.d("STARTSQUARE", game.gameState[fromRow][fromCol].toString())
-        Log.d("RESULTSTATE", game.gameState.toString())
-        //_gameState.value = game.gameState
+        _gameState.value.state[toRow][toCol] = pieceToMove
+        Log.d("ENDSQUARE", _gameState.value.state[toRow][toCol].toString())
+        _gameState.value.state[fromRow][fromCol] = null
+        Log.d("STARTSQUARE", _gameState.value.state[fromRow][fromCol].toString())
+        Log.d("RESULTSTATE", _gameState.value.state.toString())
     }
 
     private fun updateGameStateInFirestore() {
         // Update the gameState in Firestore with the new state
         // You can access the Firestore database instance here and update the document accordingly
         db.collection("games").document(gameId)
-            .update("gameState", convertToFB(game.gameState))
+            .update("gameState", convertToFB(_gameState.value.state))
     }
 
     fun changePlayer() {
         whiteMove = !whiteMove
     }
 
-    suspend fun getWhitePlayer(): UserQueue? {
+    suspend fun getWhitePlayerFromFB(): UserQueue? {
         var gameState: GameFB? = null
         val docRef = gameDetails()
         Log.d("DOCUMENT", docRef.toString())
@@ -241,8 +242,12 @@ class GameStateViewModel : ViewModel() {
         return gameState?.wPlayer
     }
 
+    fun getWhitePlayer(): UserQueue {
+        return wPlayer
+    }
+
     fun getBoardState(): MutableList<MutableList<Figure?>> {
-        return game.gameState
+        return _gameState.value.state
     }
 
     fun addGameStateListener() {
@@ -260,7 +265,7 @@ class GameStateViewModel : ViewModel() {
                 val updatedGameState = deserializer.deserialize(snapshot).gameState
                 if (updatedGameState != null) {
                     // Update local game state
-                    game.gameState = convertFromFB(updatedGameState)
+                    _gameState.value = GameState(convertFromFB(updatedGameState))
                     changePlayer()
                     // Notify observers or update UI
                     // For example, you can trigger a LiveData update or call a method to update the UI
