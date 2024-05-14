@@ -2,6 +2,7 @@ package com.example.chess2.temp
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.util.Log
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -17,10 +18,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -35,11 +38,13 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.res.TypedArrayUtils.getResourceId
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.chess2.R
+import com.example.chess2.auth.google.UserData
 import com.example.chess2.game.GameStateViewModel
 import com.example.chess2.game.figures.Figure
 import com.example.chess2.game.figures.FigureName
 import com.example.chess2.game.figures.PlayerColor
 import com.example.chess2.ui.theme.Chess2Theme
+import com.example.chess2.user.UserQueue
 import com.google.firebase.auth.FirebaseAuth
 import java.text.FieldPosition
 import java.util.Locale
@@ -52,19 +57,21 @@ fun GameScreen(
 
     val gameState by gameStateViewModel.gameState.collectAsState()
 
-    val currentUser = FirebaseAuth.getInstance().uid
-    val whitePlayer = gameStateViewModel.getWhitePlayer().userId
+    if (!gameStateViewModel.initDone) gameStateViewModel.initGame()
+
+    var currentUserId: String by remember { mutableStateOf("") }
+    var whitePlayer: UserQueue? by remember { mutableStateOf(null) }
 
     Chessboard(
         gameState = gameState.state,
         currentPlayerColor =
-        if (currentUser == whitePlayer)
+        if (currentUserId == whitePlayer!!.userId)
             PlayerColor.WHITE
         else
             PlayerColor.BLACK,
         onPieceSelected = { coordinates -> gameStateViewModel.selectChessPiece(coordinates) },
-        userId = currentUser,
-        whiteUserId = whitePlayer
+        userId = currentUserId,
+        whiteUserId = whitePlayer!!.userId
     )
 }
 
@@ -78,18 +85,13 @@ fun Chessboard(
     userId: String?,
     whiteUserId: String?
 ) {
-    val gameStateState = remember { mutableStateOf(gameState) }
-
-    // Update the gameStateState whenever the gameState changes
-    LaunchedEffect(gameState) {
-        gameStateState.value = gameState
-    }
-
     Column {
-        val rows = if (currentPlayerColor == PlayerColor.WHITE) gameState.indices else gameState.indices.reversed()
+        val rows =
+            if (currentPlayerColor == PlayerColor.WHITE) gameState.indices else gameState.indices.reversed()
         for (row in rows) {
             Row {
-                val cols = if (currentPlayerColor == PlayerColor.WHITE) gameState[row].indices else gameState[row].indices.reversed()
+                val cols =
+                    if (currentPlayerColor == PlayerColor.WHITE) gameState[row].indices else gameState[row].indices.reversed()
                 for (col in cols) {
                     val figure = gameState[row][col]
                     //val isHighlighted = selectedPiece != null && (row to col) in possibleMoves
@@ -132,7 +134,7 @@ fun Chessboard(
 @Composable
 fun ChessSquare(
     figure: Figure?,
-    position: Pair<Int,Int>,
+    position: Pair<Int, Int>,
     //isSelected: Boolean,
     //isHighlighted: Boolean,
     onClick: () -> Unit
@@ -140,7 +142,11 @@ fun ChessSquare(
     val context = LocalContext.current
 
     val drawableId = when (figure) {
-        is Figure -> getDrawableResourceId(context,"${figure.color.name.toLowerCase()}_${figure.name.name.toLowerCase()}")
+        is Figure -> getDrawableResourceId(
+            context,
+            "${figure.color.name.toLowerCase()}_${figure.name.name.toLowerCase()}"
+        )
+
         else -> R.drawable.empty
     }
 
@@ -195,6 +201,7 @@ fun ChessboardPreview() {
                     4 -> Figure(row, col, PlayerColor.BLACK, FigureName.KING)
                     else -> null
                 }
+
                 1 -> Figure(row, col, PlayerColor.BLACK, FigureName.PAWN)
                 6 -> Figure(row, col, PlayerColor.WHITE, FigureName.PAWN)
                 7 -> when (col) {
@@ -205,6 +212,7 @@ fun ChessboardPreview() {
                     4 -> Figure(row, col, PlayerColor.WHITE, FigureName.KING)
                     else -> null
                 }
+
                 else -> null
             }
         }

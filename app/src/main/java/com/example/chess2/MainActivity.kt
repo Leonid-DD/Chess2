@@ -33,7 +33,6 @@ import com.example.chess2.auth.SignInScreen
 import com.example.chess2.auth.SignInViewModel
 import com.example.chess2.auth.google.GoogleAuthUIClient
 import com.example.chess2.auth.google.UserData
-import com.example.chess2.game.Game
 import com.example.chess2.game.GameFB
 import com.example.chess2.game.GameStateViewModel
 import com.example.chess2.game.figures.Figure
@@ -45,6 +44,7 @@ import com.example.chess2.ui.theme.Chess2Theme
 import com.example.chess2.user.UserQueue
 import com.example.chess2.user.UserViewModel
 import com.google.android.gms.auth.api.identity.Identity
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import kotlinx.coroutines.delay
@@ -181,38 +181,16 @@ class MainActivity : ComponentActivity() {
 
                             if (!gameViewModel.initDone) gameViewModel.initGame()
 
-                            //val gameState by gameViewModel.gameState.collectAsStateWithLifecycle()
-
-                            LaunchedEffect(Unit) {
-                                delay(2000)
-                                gameViewModel.getPlayersFromFirestore()
-                            }
-
-                            var currentUser: UserData? by remember { mutableStateOf(null) }
+                            var currentUserId: String by remember { mutableStateOf("") }
                             var whitePlayer: UserQueue? by remember { mutableStateOf(null) }
-                            //var currentPlayerColor by remember { mutableStateOf(PlayerColor.BLACK) }
 
                             LaunchedEffect(Unit) {
-                                delay(2000)
-                                // Fetch current user data
-                                currentUser = googleAuthUiClient.getSignedInUser()
-
-                                // Fetch white player data in a coroutine
-                                try {
-                                    val player = gameViewModel.getWhitePlayerFromFB()
-                                    whitePlayer = player
-//                                    currentPlayerColor = if (currentUser?.userId == whitePlayer?.userId)
-//                                        PlayerColor.WHITE
-//                                    else
-//                                        PlayerColor.BLACK
-                                } catch (e: Exception) {
-                                    Log.d("Error", e.toString())
-                                }
+                                currentUserId = FirebaseAuth.getInstance().uid!!
+                                whitePlayer = gameViewModel.getWhitePlayerFromFB()
                             }
 
-                            if (currentUser != null && whitePlayer != null) {
+                            if (currentUserId != "" && whitePlayer != null) {
                                 key(whitePlayer) {
-                                    Log.d("PASSEDSTATE", gameViewModel.gameState.value.state.toString())
                                     GameScreen()
                                 }
                             } else {

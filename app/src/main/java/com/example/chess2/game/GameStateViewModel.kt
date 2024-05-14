@@ -77,8 +77,8 @@ class GameStateViewModel : ViewModel() {
             }
         }
 
-        var user1: UserQueue
-        var user2: UserQueue
+        val user1: UserQueue
+        val user2: UserQueue
 
         val random = (0..1).random()
         if (random == 0) {
@@ -343,6 +343,10 @@ class GameStateViewModel : ViewModel() {
 
     fun getCurrentPlayers(): String {
         return "b = {${bPlayer.userId}} : w = {${wPlayer.userId}}"
+    }
+
+    fun playersSynced(): Boolean {
+        return this::wPlayer.isInitialized && this::bPlayer.isInitialized
     }
 
 }
