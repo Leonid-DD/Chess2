@@ -36,6 +36,7 @@ import com.example.chess2.auth.google.UserData
 import com.example.chess2.game.Game
 import com.example.chess2.game.GameFB
 import com.example.chess2.game.GameStateViewModel
+import com.example.chess2.game.figures.Figure
 import com.example.chess2.game.figures.PlayerColor
 import com.example.chess2.temp.Chessboard
 import com.example.chess2.temp.SearchGame
@@ -177,7 +178,7 @@ class MainActivity : ComponentActivity() {
                         }
                         composable("game") {
 
-                            gameViewModel.initGame()
+                            if (!gameViewModel.initDone) gameViewModel.initGame()
 
                             //val gameState by gameViewModel.gameState.collectAsStateWithLifecycle()
 
@@ -189,6 +190,7 @@ class MainActivity : ComponentActivity() {
                             var currentUser: UserData? by remember { mutableStateOf(null) }
                             var whitePlayer: UserQueue? by remember { mutableStateOf(null) }
                             var currentPlayerColor by remember { mutableStateOf(PlayerColor.BLACK) }
+                            var gameState by remember { mutableStateOf(emptyList<List<Figure?>>()) }
 
                             LaunchedEffect(Unit) {
                                 delay(2000)
@@ -203,6 +205,8 @@ class MainActivity : ComponentActivity() {
                                         PlayerColor.WHITE
                                     else
                                         PlayerColor.BLACK
+
+                                    gameState = gameViewModel.getGameStateFromFB()
                                 } catch (e: Exception) {
                                     Log.d("Error", e.toString())
                                 }
@@ -210,13 +214,13 @@ class MainActivity : ComponentActivity() {
 
                             if (currentUser != null && whitePlayer != null) {
                                 key(whitePlayer) {
+                                    Log.d("PASSEDSTATE", gameState.toString())
                                     Chessboard(
-                                        gameState = gameViewModel.getBoardState(),
-                                        selectedPiece = null,
+                                        gameState = gameState,
                                         currentPlayerColor = currentPlayerColor,
                                         onPieceSelected = { coordinates -> gameViewModel.selectChessPiece(coordinates) },
                                         userId = gameViewModel.getCurrentPlayers(),
-                                        whiteUserId = whitePlayer!!.userId
+                                        whiteUserId = whitePlayer?.userId
                                     )
                                 }
                             } else {

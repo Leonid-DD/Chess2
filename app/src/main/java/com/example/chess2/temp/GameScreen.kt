@@ -16,8 +16,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -38,16 +40,54 @@ import com.example.chess2.ui.theme.Chess2Theme
 import java.text.FieldPosition
 import java.util.Locale
 
+
+@Composable
+fun GameScreen(modifier: Modifier = Modifier) {
+
+    var gameState = rememberSaveable { mutableStateListOf<Figure>() }
+
+
+
+    Spacer(modifier = Modifier.height(20.dp))
+    Text(
+        text = currentPlayerColor.toString(),
+        textAlign = TextAlign.Center,
+        fontSize = 36.sp,
+        fontWeight = FontWeight.SemiBold
+    )
+    Spacer(modifier = Modifier.height(20.dp))
+    Text(
+        text = if (userId != null) userId else "none",
+        textAlign = TextAlign.Center,
+        fontSize = 36.sp,
+        fontWeight = FontWeight.SemiBold
+    )
+    Spacer(modifier = Modifier.height(20.dp))
+    Text(
+        text = if (whiteUserId != null) whiteUserId else "none",
+        textAlign = TextAlign.Center,
+        fontSize = 36.sp,
+        fontWeight = FontWeight.SemiBold
+    )
+}
+
 @Composable
 fun Chessboard(
     gameState: List<List<Figure?>>,
-    selectedPiece: Pair<Int, Int>?,
+    //selectedPiece: Pair<Int, Int>?,
     //possibleMoves: List<Pair<Int, Int>>,
     currentPlayerColor: PlayerColor,
     onPieceSelected: (Pair<Int, Int>) -> Unit,
     userId: String?,
     whiteUserId: String?
 ) {
+    val gameStateState = remember { mutableStateOf(gameState) }
+
+    // Update the gameStateState whenever the gameState changes
+    LaunchedEffect(gameState) {
+        gameStateState.value = gameState
+    }
+
     Column {
         val rows = if (currentPlayerColor == PlayerColor.WHITE) gameState.indices else gameState.indices.reversed()
         for (row in rows) {
@@ -59,7 +99,7 @@ fun Chessboard(
                     ChessSquare(
                         figure = figure,
                         position = Pair(row, col),
-                        isSelected = selectedPiece?.first == row && selectedPiece.second == col,
+                        //isSelected = selectedPiece?.first == row && selectedPiece.second == col,
                         //isHighlighted = isHighlighted,
                         onClick = {
                             onPieceSelected(Pair(row, col))
@@ -68,27 +108,6 @@ fun Chessboard(
                 }
             }
         }
-        Spacer(modifier = Modifier.height(20.dp))
-        Text(
-            text = currentPlayerColor.toString(),
-            textAlign = TextAlign.Center,
-            fontSize = 36.sp,
-            fontWeight = FontWeight.SemiBold
-        )
-        Spacer(modifier = Modifier.height(20.dp))
-        Text(
-            text = if (userId != null) userId else "none",
-            textAlign = TextAlign.Center,
-            fontSize = 36.sp,
-            fontWeight = FontWeight.SemiBold
-        )
-        Spacer(modifier = Modifier.height(20.dp))
-        Text(
-            text = if (whiteUserId != null) whiteUserId else "none",
-            textAlign = TextAlign.Center,
-            fontSize = 36.sp,
-            fontWeight = FontWeight.SemiBold
-        )
     }
 }
 
@@ -96,7 +115,7 @@ fun Chessboard(
 fun ChessSquare(
     figure: Figure?,
     position: Pair<Int,Int>,
-    isSelected: Boolean,
+    //isSelected: Boolean,
     //isHighlighted: Boolean,
     onClick: () -> Unit
 ) {
@@ -178,7 +197,6 @@ fun ChessboardPreview() {
 
     Chessboard(
         gameState,
-        selectedPiece.value,
         PlayerColor.BLACK,
         onPieceSelected = { },
         null,

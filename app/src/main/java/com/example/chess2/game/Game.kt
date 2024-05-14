@@ -8,7 +8,7 @@ import java.util.Objects
 
 data class Game(
     val gameId: String,
-    var gameState: MutableList<MutableList<Figure?>>,
+    val gameState: MutableList<MutableList<Figure?>>,
     //Change to User
     val wPlayer: UserQueue,
     val bPlayer: UserQueue
