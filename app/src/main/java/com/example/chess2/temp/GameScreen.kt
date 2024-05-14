@@ -48,15 +48,13 @@ fun Chessboard(
     userId: String?,
     whiteUserId: String?
 ) {
-    val boardState by remember { mutableStateOf(gameState) }
-
     Column {
-        val rows = if (currentPlayerColor == PlayerColor.WHITE) boardState.indices else boardState.indices.reversed()
+        val rows = if (currentPlayerColor == PlayerColor.WHITE) gameState.indices else gameState.indices.reversed()
         for (row in rows) {
             Row {
-                val cols = if (currentPlayerColor == PlayerColor.WHITE) boardState[row].indices else boardState[row].indices.reversed()
+                val cols = if (currentPlayerColor == PlayerColor.WHITE) gameState[row].indices else gameState[row].indices.reversed()
                 for (col in cols) {
-                    val figure = boardState[row][col]
+                    val figure = gameState[row][col]
                     //val isHighlighted = selectedPiece != null && (row to col) in possibleMoves
                     ChessSquare(
                         figure = figure,
@@ -149,7 +147,7 @@ fun getDrawableResourceId(context: Context, resourceName: String): Int {
 @Preview
 @Composable
 fun ChessboardPreview() {
-    val boardState = List(8) { row ->
+    val gameState = List(8) { row ->
         List(8) { col ->
             when (row) {
                 0 -> when (col) {
@@ -179,7 +177,7 @@ fun ChessboardPreview() {
     val possibleMoves = remember { mutableStateOf<List<Pair<Int, Int>>>(emptyList()) }
 
     Chessboard(
-        boardState,
+        gameState,
         selectedPiece.value,
         PlayerColor.BLACK,
         onPieceSelected = { },

@@ -1,5 +1,6 @@
 package com.example.chess2.game
 
+import android.annotation.SuppressLint
 import android.util.Log
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
@@ -16,6 +17,8 @@ import java.util.UUID
 
 
 class GameStateViewModel : ViewModel() {
+
+    val _gameState = mutableStateOf<MutableList<MutableList<Figure?>>>(mutableListOf())
 
     //Change to User
     private lateinit var wPlayer: UserQueue
@@ -144,14 +147,7 @@ class GameStateViewModel : ViewModel() {
             // Check if the move is valid
             if (isValidMove(pieceToMove!!, fromRow, fromCol, toRow, toCol)) {
                 // Update local gameState
-                pieceToMove.col = toCol
-                pieceToMove.row = toRow
-                game.gameState[toRow][toCol] = pieceToMove
-                Log.d("ENDSQUARE", game.gameState[toRow][toCol].toString())
-                game.gameState[fromRow][fromCol] = null
-                Log.d("STARTSQUARE", game.gameState[fromRow][fromCol].toString())
-
-                Log.d("RESULTSTATE", game.gameState.toString())
+                updateGameState(fromRow,fromCol,toRow,toCol)
 
                 // Clear selected piece position
                 selectedPiecePosition = null
@@ -195,11 +191,21 @@ class GameStateViewModel : ViewModel() {
         return true
     }
 
+    private fun updateGameState(fromRow: Int, fromCol: Int, toRow: Int, toCol: Int) {
+        val pieceToMove = _gameState.value[fromRow][fromCol]
+        _gameState.value[toRow][toCol] = pieceToMove
+        Log.d("ENDSQUARE", _gameState.value[toRow][toCol].toString())
+        _gameState.value[fromRow][fromCol] = null
+        Log.d("STARTSQUARE", _gameState.value[fromRow][fromCol].toString())
+        Log.d("RESULTSTATE", _gameState.value.toString())
+        _gameState.value = _gameState.value
+    }
+
     private fun updateGameStateInFirestore() {
         // Update the gameState in Firestore with the new state
         // You can access the Firestore database instance here and update the document accordingly
         db.collection("games").document(gameId)
-            .update("gameState", convertToFB(game.gameState))
+            .update("gameState", convertToFB(_gameState.value))
     }
 
     fun changePlayer() {
@@ -224,7 +230,7 @@ class GameStateViewModel : ViewModel() {
     }
 
     fun getBoardState(): MutableList<MutableList<Figure?>> {
-        return game.gameState
+        return _gameState.value
     }
 
     fun addGameStateListener() {
@@ -242,7 +248,7 @@ class GameStateViewModel : ViewModel() {
                 val updatedGameState = deserializer.deserialize(snapshot).gameState
                 if (updatedGameState != null) {
                     // Update local game state
-                    game.gameState = convertFromFB(updatedGameState)
+                    _gameState.value = convertFromFB(updatedGameState)
                     changePlayer()
                     // Notify observers or update UI
                     // For example, you can trigger a LiveData update or call a method to update the UI

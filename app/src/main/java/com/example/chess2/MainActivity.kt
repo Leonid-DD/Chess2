@@ -178,6 +178,8 @@ class MainActivity : ComponentActivity() {
 
                             gameViewModel.initGame()
 
+                            val gameState by gameViewModel._gameState
+
                             LaunchedEffect(Unit) {
                                 delay(2000)
                                 gameViewModel.getPlayersFromFirestore()
@@ -208,7 +210,7 @@ class MainActivity : ComponentActivity() {
                             if (currentUser != null && whitePlayer != null) {
                                 key(whitePlayer) {
                                     Chessboard(
-                                        gameState = gameViewModel.getBoardState(),
+                                        gameState = gameState,
                                         selectedPiece = null,
                                         currentPlayerColor = currentPlayerColor,
                                         onPieceSelected = { coordinates -> gameViewModel.selectChessPiece(coordinates) },
