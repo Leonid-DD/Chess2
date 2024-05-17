@@ -57,21 +57,21 @@ fun GameScreen(
 
     val gameState by gameStateViewModel.gameState.collectAsState()
 
-    if (!gameStateViewModel.initDone) gameStateViewModel.initGame()
+    //if (!gameStateViewModel.initDone) gameStateViewModel.initGame()
 
-    var currentUserId: String by remember { mutableStateOf("") }
-    var whitePlayer: UserQueue? by remember { mutableStateOf(null) }
+    val currentUserId = FirebaseAuth.getInstance().uid
+    val whitePlayer = remember { gameStateViewModel.getWhitePlayer() }
 
     Chessboard(
         gameState = gameState.state,
         currentPlayerColor =
-        if (currentUserId == whitePlayer!!.userId)
+        if (currentUserId == whitePlayer.userId)
             PlayerColor.WHITE
         else
             PlayerColor.BLACK,
         onPieceSelected = { coordinates -> gameStateViewModel.selectChessPiece(coordinates) },
         userId = currentUserId,
-        whiteUserId = whitePlayer!!.userId
+        whiteUserId = whitePlayer.userId
     )
 }
 

@@ -185,13 +185,15 @@ class MainActivity : ComponentActivity() {
                             var whitePlayer: UserQueue? by remember { mutableStateOf(null) }
 
                             LaunchedEffect(Unit) {
+                                delay(2000)
+                                gameViewModel.getPlayersFromFirestore()
                                 currentUserId = FirebaseAuth.getInstance().uid!!
                                 whitePlayer = gameViewModel.getWhitePlayerFromFB()
                             }
 
                             if (currentUserId != "" && whitePlayer != null) {
                                 key(whitePlayer) {
-                                    GameScreen()
+                                    GameScreen(gameViewModel)
                                 }
                             } else {
                                 // Show a loading indicator or placeholder while data is being fetched
