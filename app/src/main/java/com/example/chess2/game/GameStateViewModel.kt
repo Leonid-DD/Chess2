@@ -12,6 +12,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
+import com.google.protobuf.Internal.BooleanList
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -22,10 +23,14 @@ import java.util.UUID
 class GameStateViewModel : ViewModel() {
 
     //game.gameState -> _gameState.value.state
-    
+
     //Game State
     private val _gameState = MutableStateFlow(GameState())
     val gameState: StateFlow<GameState> = _gameState.asStateFlow()
+
+    //Highlight State
+    private val _highlightState = MutableStateFlow(ValidMoves())
+    val highlightState: StateFlow<ValidMoves> = _highlightState.asStateFlow()
 
     //Other game properties
     //Change to User
@@ -189,15 +194,12 @@ class GameStateViewModel : ViewModel() {
     }
 
     private fun updateGameState(fromRow: Int, fromCol: Int, toRow: Int, toCol: Int) {
-//        val pieceToMove = _gameState.value.state[fromRow][fromCol]
-//        pieceToMove?.row = toRow
-//        pieceToMove?.col = toCol
-//        _gameState.value.state[toRow][toCol] = pieceToMove
-//        _gameState.value.state[fromRow][fromCol] = null
-//        _gameState.value = GameState(_gameState.value.state)
-
-        val currentState = _gameState.value.state.map { it.toMutableList() }.toMutableList() // Create a deep copy of the state
+        val currentState = _gameState.value.state.map { it.toMutableList() }
+            .toMutableList() // Create a deep copy of the state
         val pieceToMove = currentState[fromRow][fromCol]
+//        if (pieceToMove!!.firstMove) {
+//            pieceToMove.firstMove = false
+//        }
         pieceToMove?.row = toRow
         pieceToMove?.col = toCol
         currentState[toRow][toCol] = pieceToMove
@@ -259,7 +261,12 @@ class GameStateViewModel : ViewModel() {
                 // Document exists, update game state
                 val deserializer = GameFBDeserializer()
                 val updatedGameState = deserializer.deserialize(snapshot).gameState
-                if (updatedGameState != null && _gameState.value != GameState(convertFromFB(updatedGameState))) {
+                if (updatedGameState != null && _gameState.value != GameState(
+                        convertFromFB(
+                            updatedGameState
+                        )
+                    )
+                ) {
                     // Update local game state
                     _gameState.value = GameState(convertFromFB(updatedGameState))
                     changePlayer()
@@ -338,6 +345,100 @@ class GameStateViewModel : ViewModel() {
 
     fun playersSynced(): Boolean {
         return this::wPlayer.isInitialized && this::bPlayer.isInitialized
+    }
+
+    fun calculateValidMoves() {
+        if (selectedPiecePosition != null) {
+            val selectedPiece =
+                gameState.value.state[selectedPiecePosition!!.first][selectedPiecePosition!!.second]
+            val playerColor = selectedPiece?.color
+            val validMoves = mutableListOf<Pair<Int, Int>>()
+            validMoves.add(selectedPiecePosition!!)
+
+            when (selectedPiece?.name) {
+                FigureName.PAWN -> {
+
+                }
+
+                FigureName.BISHOP -> {
+
+                }
+
+                FigureName.ROOK -> {
+
+                }
+
+                FigureName.KNIGHT -> {
+
+                }
+
+                FigureName.KING -> {
+
+                }
+
+                FigureName.QUEEN -> {
+
+                }
+
+                null -> TODO()
+            }
+
+            _highlightState.value = ValidMoves(validMoves)
+        }
+
+    }
+
+    fun squareEmpty(coordinates: Pair<Int, Int>): Boolean {
+        val targetSquare = gameState.value.state[coordinates.first][coordinates.second]
+        return targetSquare == null
+    }
+
+    fun squareEnemyFigure(
+        coordinates: Pair<Int, Int>,
+        playerColor: PlayerColor
+    ): Boolean {
+        val targetSquare = gameState.value.state[coordinates.first][coordinates.second]
+        return targetSquare?.color != playerColor
+    }
+
+    fun pawnFirstMove(coordinates: Pair<Int, Int>, length: Int) {
+
+    }
+
+    fun pawnBaseMove(coordinates: Pair<Int, Int>, length: Int) {
+
+    }
+
+    fun pawnEatLeft(coordinates: Pair<Int, Int>) {
+
+    }
+
+    fun pawnEatRight(coordinates: Pair<Int, Int>) {
+
+    }
+
+    fun straightLineMove(coordinates: Pair<Int, Int>, length: Int) {
+
+    }
+
+    fun diagonalLineMove(coordinates: Pair<Int, Int>, length: Int, isPawn: Boolean) {
+
+    }
+
+    fun knightFront(coordinates: Pair<Int, Int>, isPawn: Boolean) {
+
+    }
+
+    fun knightUpMid(coordinates: Pair<Int, Int>, isPawn: Boolean) {
+
+    }
+
+    fun knightDownMid(coordinates: Pair<Int, Int>) {
+
+    }
+
+    fun knightBack(coordinates: Pair<Int, Int>) {
+
     }
 
 }

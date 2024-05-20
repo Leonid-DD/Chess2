@@ -56,8 +56,7 @@ fun GameScreen(
 ) {
 
     val gameState by gameStateViewModel.gameState.collectAsState()
-
-    //if (!gameStateViewModel.initDone) gameStateViewModel.initGame()
+    //val highlightedSquares by gameStateViewModel.validMoves.collectAsState()
 
     val currentUserId = FirebaseAuth.getInstance().uid
     val whitePlayer = remember { gameStateViewModel.getWhitePlayer() }
