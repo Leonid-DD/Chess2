@@ -361,7 +361,85 @@ class GameStateViewModel : ViewModel() {
                     validMoves.addAll(diagonalLineMove(coordinates, 7))
                 }
 
-                null -> TODO()
+                FigureName.PAWN_ROOK -> {
+                    validMoves.addAll(pawnFirstMove(coordinates, 3, isWhite))
+                    validMoves.addAll(pawnBaseMove(coordinates, 2, isWhite))
+                    validMoves.addAll(pawnTake(coordinates, 1, isWhite))
+                }
+
+                FigureName.PAWN_KNIGHT -> {
+                    validMoves.addAll(pawnFirstMove(coordinates, 2, isWhite))
+                    validMoves.addAll(pawnBaseMove(coordinates, 1, isWhite))
+                    validMoves.addAll(pawnTake(coordinates, 1, isWhite))
+                    validMoves.addAll(knightFront(coordinates, isWhite, true))
+                }
+
+                FigureName.PAWN_BISHOP -> {
+                    validMoves.addAll(pawnFirstMove(coordinates, 2, isWhite))
+                    validMoves.addAll(pawnBaseMove(coordinates, 1, isWhite))
+                    validMoves.addAll(pawnTake(coordinates, 2, isWhite))
+                }
+
+                FigureName.ROOK_PAWN -> {
+                    validMoves.addAll(straightLineMove(coordinates, 3))
+                    validMoves.addAll(pawnTake(coordinates, 1, isWhite))
+                }
+
+                FigureName.ROOK_KNIGHT -> {
+                    validMoves.addAll(straightLineMove(coordinates, 2))
+                    validMoves.addAll(knightFront(coordinates, isWhite, false))
+                    validMoves.addAll(knightUpMid(coordinates, isWhite, false))
+                    validMoves.addAll(knightDownMid(coordinates, isWhite))
+                    validMoves.addAll(knightBack(coordinates, isWhite))
+                }
+
+                FigureName.ROOK_BISHOP -> {
+                    validMoves.addAll(straightLineMove(coordinates, 2))
+                    validMoves.addAll(diagonalLineMove(coordinates, 1))
+                }
+
+                FigureName.KNIGHT_PAWN -> {
+                    validMoves.addAll(pawnFirstMove(coordinates, 2, isWhite))
+                    validMoves.addAll(pawnBaseMove(coordinates, 1, isWhite))
+                    validMoves.addAll(pawnTake(coordinates, 1, isWhite))
+                    validMoves.addAll(knightFront(coordinates, isWhite, true))
+                    validMoves.addAll(knightUpMid(coordinates, isWhite, true))
+                    validMoves.addAll(knightDownMid(coordinates, isWhite))
+                    validMoves.addAll(knightBack(coordinates, isWhite))
+                }
+
+                FigureName.KNIGHT_ROOK -> {
+                    validMoves.addAll(knightFront(coordinates, isWhite, false))
+                    validMoves.addAll(knightBack(coordinates, isWhite))
+                    validMoves.addAll(straightLineMove(coordinates, 1))
+                }
+
+                FigureName.KNIGHT_BISHOP -> {
+                    validMoves.addAll(knightFront(coordinates, isWhite, false))
+                    validMoves.addAll(knightBack(coordinates, isWhite))
+                    validMoves.addAll(diagonalLineMove(coordinates, 1))
+                }
+
+                FigureName.BISHOP_PAWN -> {
+                    validMoves.addAll(diagonalLineMove(coordinates, 3))
+                    validMoves.addAll(pawnFirstMove(coordinates, 2, isWhite))
+                    validMoves.addAll(pawnBaseMove(coordinates, 1, isWhite))
+                }
+
+                FigureName.BISHOP_ROOK -> {
+                    validMoves.addAll(diagonalLineMove(coordinates, 2))
+                    validMoves.addAll(straightLineMove(coordinates, 1))
+                }
+
+                FigureName.BISHOP_KNIGHT -> {
+                    validMoves.addAll(diagonalLineMove(coordinates, 2))
+                    validMoves.addAll(knightFront(coordinates, isWhite, false))
+                    validMoves.addAll(knightUpMid(coordinates, isWhite, false))
+                    validMoves.addAll(knightDownMid(coordinates, isWhite))
+                    validMoves.addAll(knightBack(coordinates, isWhite))
+                }
+
+                else -> { }
             }
 
             _highlightState.value = ValidMoves(validMoves)
@@ -412,7 +490,6 @@ class GameStateViewModel : ViewModel() {
         val moves = mutableListOf<Pair<Int, Int>>()
 
         val direction = if (isWhite) -1 else 1
-        val startRowForTwoStep = if (isWhite) 6 else 1
 
         // Standard forward move
         for (i in 1..length) {
@@ -435,17 +512,23 @@ class GameStateViewModel : ViewModel() {
         val moves = mutableListOf<Pair<Int, Int>>()
 
         val direction = if (isWhite) -1 else 1
-        for (i in 1..length) {
-            val captureMoves = listOf(
-                Pair(startRow + direction, startCol - 1),
-                Pair(startRow + direction, startCol + 1)
-            )
-            for (captureMove in captureMoves) {
-                if (isValidPosition(captureMove.first, captureMove.second)) {
-                    val targetPiece = gameState[captureMove.first][captureMove.second]
-                    if (targetPiece != null && targetPiece.color != gameState[startRow][startCol]?.color) {
-                        moves.add(captureMove)
+        val directions = listOf(
+            Pair(direction, 1),
+            Pair(direction, -1)
+        )
+        for (dir in directions) {
+            for (i in 1..length) {
+                val newRow = startRow + i * dir.first
+                val newCol = startCol + i * dir.second
+                if (!isValidPosition(newRow, newCol)) break
+                val targetPiece = gameState[newRow][newCol]
+                if (targetPiece == null) {
+                    //moves.add(Pair(newRow, newCol))
+                } else {
+                    if (targetPiece.color != gameState[startRow][startCol]?.color) {
+                        moves.add(Pair(newRow, newCol)) // Capture
                     }
+                    break
                 }
             }
         }

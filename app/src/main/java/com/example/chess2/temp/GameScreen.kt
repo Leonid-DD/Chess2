@@ -107,27 +107,27 @@ fun Chessboard(
                 }
             }
         }
-        Spacer(modifier = Modifier.height(20.dp))
-        Text(
-            text = currentPlayerColor.toString(),
-            textAlign = TextAlign.Center,
-            fontSize = 36.sp,
-            fontWeight = FontWeight.SemiBold
-        )
-        Spacer(modifier = Modifier.height(20.dp))
-        Text(
-            text = if (userId != null) userId else "none",
-            textAlign = TextAlign.Center,
-            fontSize = 36.sp,
-            fontWeight = FontWeight.SemiBold
-        )
-        Spacer(modifier = Modifier.height(20.dp))
-        Text(
-            text = if (whiteUserId != null) whiteUserId else "none",
-            textAlign = TextAlign.Center,
-            fontSize = 36.sp,
-            fontWeight = FontWeight.SemiBold
-        )
+//        Spacer(modifier = Modifier.height(20.dp))
+//        Text(
+//            text = currentPlayerColor.toString(),
+//            textAlign = TextAlign.Center,
+//            fontSize = 36.sp,
+//            fontWeight = FontWeight.SemiBold
+//        )
+//        Spacer(modifier = Modifier.height(20.dp))
+//        Text(
+//            text = if (userId != null) userId else "none",
+//            textAlign = TextAlign.Center,
+//            fontSize = 36.sp,
+//            fontWeight = FontWeight.SemiBold
+//        )
+//        Spacer(modifier = Modifier.height(20.dp))
+//        Text(
+//            text = if (whiteUserId != null) whiteUserId else "none",
+//            textAlign = TextAlign.Center,
+//            fontSize = 36.sp,
+//            fontWeight = FontWeight.SemiBold
+//        )
     }
 }
 
