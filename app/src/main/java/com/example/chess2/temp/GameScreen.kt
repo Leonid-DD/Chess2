@@ -4,8 +4,10 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.util.Log
 import androidx.annotation.DrawableRes
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -56,13 +58,14 @@ fun GameScreen(
 ) {
 
     val gameState by gameStateViewModel.gameState.collectAsState()
-    //val highlightedSquares by gameStateViewModel.validMoves.collectAsState()
+    val highlightedSquares by gameStateViewModel.highlightState.collectAsState()
 
     val currentUserId = FirebaseAuth.getInstance().uid
     val whitePlayer = remember { gameStateViewModel.getWhitePlayer() }
 
     Chessboard(
         gameState = gameState.state,
+        highlightState = highlightedSquares.state,
         currentPlayerColor =
         if (currentUserId == whitePlayer.userId)
             PlayerColor.WHITE
@@ -77,8 +80,7 @@ fun GameScreen(
 @Composable
 fun Chessboard(
     gameState: List<List<Figure?>>,
-    //selectedPiece: Pair<Int, Int>?,
-    //possibleMoves: List<Pair<Int, Int>>,
+    highlightState: List<Pair<Int, Int>>,
     currentPlayerColor: PlayerColor,
     onPieceSelected: (Pair<Int, Int>) -> Unit,
     userId: String?,
@@ -93,12 +95,11 @@ fun Chessboard(
                     if (currentPlayerColor == PlayerColor.WHITE) gameState[row].indices else gameState[row].indices.reversed()
                 for (col in cols) {
                     val figure = gameState[row][col]
-                    //val isHighlighted = selectedPiece != null && (row to col) in possibleMoves
+                    val isHighlighted = highlightState.contains(Pair(row, col))
                     ChessSquare(
                         figure = figure,
                         position = Pair(row, col),
-                        //isSelected = selectedPiece?.first == row && selectedPiece.second == col,
-                        //isHighlighted = isHighlighted,
+                        isHighlighted = isHighlighted,
                         onClick = {
                             onPieceSelected(Pair(row, col))
                         }
@@ -134,8 +135,7 @@ fun Chessboard(
 fun ChessSquare(
     figure: Figure?,
     position: Pair<Int, Int>,
-    //isSelected: Boolean,
-    //isHighlighted: Boolean,
+    isHighlighted: Boolean,
     onClick: () -> Unit
 ) {
     val context = LocalContext.current
@@ -149,7 +149,9 @@ fun ChessSquare(
         else -> R.drawable.empty
     }
 
-    val squareColor = if (((position.first ?: 0) + (position.second ?: 0)) % 2 == 0) {
+    val squareColor = if (isHighlighted) {
+        Color.Green
+    } else if (((position.first ?: 0) + (position.second ?: 0)) % 2 == 0) {
         Color.LightGray
     } else {
         Color.Gray
@@ -162,6 +164,7 @@ fun ChessSquare(
         modifier = Modifier
             .size(cellSide)
             .background(squareColor)
+            .border(BorderStroke(if (isHighlighted) 1.dp else 0.dp, Color.Gray))
             .clickable { onClick() },
         contentAlignment = Alignment.Center
     ) {
@@ -220,11 +223,11 @@ fun ChessboardPreview() {
     val selectedPiece = remember { mutableStateOf<Pair<Int, Int>?>(null) }
     val possibleMoves = remember { mutableStateOf<List<Pair<Int, Int>>>(emptyList()) }
 
-    Chessboard(
-        gameState,
-        PlayerColor.BLACK,
-        onPieceSelected = { },
-        null,
-        null
-    )
+//    Chessboard(
+//        gameState,
+//        PlayerColor.BLACK,
+//        onPieceSelected = { },
+//        null,
+//        null
+//    )
 }

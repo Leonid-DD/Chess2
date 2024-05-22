@@ -351,33 +351,41 @@ class GameStateViewModel : ViewModel() {
         if (selectedPiecePosition != null) {
             val selectedPiece =
                 gameState.value.state[selectedPiecePosition!!.first][selectedPiecePosition!!.second]
-            val playerColor = selectedPiece?.color
+            val coordinates: Pair<Int, Int> = Pair(selectedPiece?.row!!, selectedPiece?.col!!)
+            val isWhite = selectedPiece?.color == PlayerColor.WHITE
             val validMoves = mutableListOf<Pair<Int, Int>>()
             validMoves.add(selectedPiecePosition!!)
 
             when (selectedPiece?.name) {
                 FigureName.PAWN -> {
-
+                    validMoves.addAll(pawnFirstMove(coordinates, 1, isWhite))
+                    validMoves.addAll(pawnBaseMove(coordinates, 1, isWhite))
+                    validMoves.addAll(pawnTake(coordinates, 1, isWhite))
                 }
 
                 FigureName.BISHOP -> {
-
+                    validMoves.addAll(diagonalLineMove(coordinates, 7))
                 }
 
                 FigureName.ROOK -> {
-
+                    validMoves.addAll(straightLineMove(coordinates, 7))
                 }
 
                 FigureName.KNIGHT -> {
-
+                    validMoves.addAll(knightFront(coordinates, isWhite, false))
+                    validMoves.addAll(knightUpMid(coordinates, isWhite, false))
+                    validMoves.addAll(knightDownMid(coordinates, isWhite))
+                    validMoves.addAll(knightBack(coordinates, isWhite))
                 }
 
                 FigureName.KING -> {
-
+                    validMoves.addAll(straightLineMove(coordinates, 1))
+                    validMoves.addAll(diagonalLineMove(coordinates, 1))
                 }
 
                 FigureName.QUEEN -> {
-
+                    validMoves.addAll(straightLineMove(coordinates, 7))
+                    validMoves.addAll(diagonalLineMove(coordinates, 7))
                 }
 
                 null -> TODO()
@@ -388,57 +396,244 @@ class GameStateViewModel : ViewModel() {
 
     }
 
-    fun squareEmpty(coordinates: Pair<Int, Int>): Boolean {
-        val targetSquare = gameState.value.state[coordinates.first][coordinates.second]
-        return targetSquare == null
-    }
-
-    fun squareEnemyFigure(
+    fun pawnFirstMove(
         coordinates: Pair<Int, Int>,
-        playerColor: PlayerColor
-    ): Boolean {
-        val targetSquare = gameState.value.state[coordinates.first][coordinates.second]
-        return targetSquare?.color != playerColor
+        length: Int,
+        isWhite: Boolean
+    ): List<Pair<Int, Int>> {
+        val gameState = _gameState.value.state
+        val (startRow, startCol) = coordinates
+        val moves = mutableListOf<Pair<Int, Int>>()
+
+        val direction = if (isWhite) -1 else 1
+        val startRowForTwoStep = if (isWhite) 6 else 1
+
+        // First move double step
+        if (startRow == startRowForTwoStep) {
+            val twoStepsForward = Pair(startRow + length * direction, startCol)
+            if (isValidPosition(
+                    twoStepsForward.first,
+                    twoStepsForward.second
+                ) && gameState[twoStepsForward.first][twoStepsForward.second] == null
+            ) {
+                moves.add(twoStepsForward)
+            }
+        }
+
+        return moves
     }
 
-    fun pawnFirstMove(coordinates: Pair<Int, Int>, length: Int) {
+    fun pawnBaseMove(
+        coordinates: Pair<Int, Int>,
+        length: Int,
+        isWhite: Boolean
+    ): List<Pair<Int, Int>> {
+        val gameState = _gameState.value.state
+        val (startRow, startCol) = coordinates
+        val moves = mutableListOf<Pair<Int, Int>>()
 
+        val direction = if (isWhite) -1 else 1
+        val startRowForTwoStep = if (isWhite) 6 else 1
+
+        // Standard forward move
+        for (i in 1..length) {
+            val oneStepForward = Pair(startRow + length * direction, startCol)
+            if (isValidPosition(
+                    oneStepForward.first,
+                    oneStepForward.second
+                ) && gameState[oneStepForward.first][oneStepForward.second] == null
+            ) {
+                moves.add(oneStepForward)
+            }
+        }
+
+        return moves
     }
 
-    fun pawnBaseMove(coordinates: Pair<Int, Int>, length: Int) {
+    fun pawnTake(coordinates: Pair<Int, Int>, length: Int, isWhite: Boolean): List<Pair<Int, Int>> {
+        val gameState = _gameState.value.state
+        val (startRow, startCol) = coordinates
+        val moves = mutableListOf<Pair<Int, Int>>()
 
+        val direction = if (isWhite) -1 else 1
+        for (i in 1..length) {
+            val captureMoves = listOf(
+                Pair(startRow + direction, startCol - 1),
+                Pair(startRow + direction, startCol + 1)
+            )
+            for (captureMove in captureMoves) {
+                if (isValidPosition(captureMove.first, captureMove.second)) {
+                    val targetPiece = gameState[captureMove.first][captureMove.second]
+                    if (targetPiece != null && targetPiece.color != gameState[startRow][startCol]?.color) {
+                        moves.add(captureMove)
+                    }
+                }
+            }
+        }
+
+        return moves
     }
 
-    fun pawnEatLeft(coordinates: Pair<Int, Int>) {
-
+    fun straightLineMove(coordinates: Pair<Int, Int>, length: Int): List<Pair<Int, Int>> {
+        val gameState = _gameState.value.state
+        val (startRow, startCol) = coordinates
+        val moves = mutableListOf<Pair<Int, Int>>()
+        val directions = listOf(
+            Pair(1, 0),  // Down
+            Pair(-1, 0), // Up
+            Pair(0, 1),  // Right
+            Pair(0, -1)  // Left
+        )
+        for (direction in directions) {
+            for (i in 1..length) {
+                val newRow = startRow + i * direction.first
+                val newCol = startCol + i * direction.second
+                if (!isValidPosition(newRow, newCol)) break
+                val targetPiece = gameState[newRow][newCol]
+                if (targetPiece == null) {
+                    moves.add(Pair(newRow, newCol))
+                } else {
+                    if (targetPiece.color != gameState[startRow][startCol]?.color) {
+                        moves.add(Pair(newRow, newCol)) // Capture
+                    }
+                    break
+                }
+            }
+        }
+        return moves
     }
 
-    fun pawnEatRight(coordinates: Pair<Int, Int>) {
-
+    fun diagonalLineMove(coordinates: Pair<Int, Int>, length: Int): List<Pair<Int, Int>> {
+        val gameState = _gameState.value.state
+        val (startRow, startCol) = coordinates
+        val moves = mutableListOf<Pair<Int, Int>>()
+        val directions = listOf(
+            Pair(1, 1),  // Down-right
+            Pair(1, -1), // Down-left
+            Pair(-1, 1), // Up-right
+            Pair(-1, -1) // Up-left
+        )
+        for (direction in directions) {
+            for (i in 1..length) {
+                val newRow = startRow + i * direction.first
+                val newCol = startCol + i * direction.second
+                if (!isValidPosition(newRow, newCol)) break
+                val targetPiece = gameState[newRow][newCol]
+                if (targetPiece == null) {
+                    moves.add(Pair(newRow, newCol))
+                } else {
+                    if (targetPiece.color != gameState[startRow][startCol]?.color) {
+                        moves.add(Pair(newRow, newCol)) // Capture
+                    }
+                    break
+                }
+            }
+        }
+        return moves
     }
 
-    fun straightLineMove(coordinates: Pair<Int, Int>, length: Int) {
+    fun knightFront(coordinates: Pair<Int, Int>, isWhite: Boolean, isPawn: Boolean): List<Pair<Int, Int>> {
+        val gameState = _gameState.value.state
+        val (startRow, startCol) = coordinates
+        val moves = mutableListOf<Pair<Int, Int>>()
 
+        val direction = if (isWhite) -1 else 1
+        val knightMoves = listOf(
+            Pair(2 * direction, 1), Pair(2 * direction, -1)
+        )
+        for (move in knightMoves) {
+            val newRow = startRow + move.first
+            val newCol = startCol + move.second
+            if (isValidPosition(newRow, newCol)) {
+                val targetPiece = gameState[newRow][newCol]
+                if (isPawn) {
+                    if (targetPiece != null && targetPiece.color != gameState[startRow][startCol]?.color) {
+                        moves.add(Pair(newRow, newCol))
+                    }
+                } else {
+                    if (targetPiece == null || targetPiece.color != gameState[startRow][startCol]?.color) {
+                        moves.add(Pair(newRow, newCol))
+                    }
+                }
+            }
+        }
+        return moves
     }
 
-    fun diagonalLineMove(coordinates: Pair<Int, Int>, length: Int, isPawn: Boolean) {
+    fun knightUpMid(coordinates: Pair<Int, Int>, isWhite: Boolean, isPawn: Boolean): List<Pair<Int, Int>> {
+        val gameState = _gameState.value.state
+        val (startRow, startCol) = coordinates
+        val moves = mutableListOf<Pair<Int, Int>>()
 
+        val direction = if (isWhite) -1 else 1
+        val knightMoves = listOf(
+            Pair(direction, 2), Pair(direction, -2)
+        )
+        for (move in knightMoves) {
+            val newRow = startRow + move.first
+            val newCol = startCol + move.second
+            if (isValidPosition(newRow, newCol)) {
+                val targetPiece = gameState[newRow][newCol]
+                if (isPawn) {
+                    if (targetPiece != null && targetPiece.color != gameState[startRow][startCol]?.color) {
+                        moves.add(Pair(newRow, newCol))
+                    }
+                } else {
+                    if (targetPiece == null || targetPiece.color != gameState[startRow][startCol]?.color) {
+                        moves.add(Pair(newRow, newCol))
+                    }
+                }
+            }
+        }
+        return moves
     }
 
-    fun knightFront(coordinates: Pair<Int, Int>, isPawn: Boolean) {
+    fun knightDownMid(coordinates: Pair<Int, Int>, isWhite: Boolean): List<Pair<Int, Int>> {
+        val gameState = _gameState.value.state
+        val (startRow, startCol) = coordinates
+        val moves = mutableListOf<Pair<Int, Int>>()
 
+        val direction = if (isWhite) -1 else 1
+        val knightMoves = listOf(
+            Pair(-1 * direction, 2), Pair(-1 * direction, -2)
+        )
+        for (move in knightMoves) {
+            val newRow = startRow + move.first
+            val newCol = startCol + move.second
+            if (isValidPosition(newRow, newCol)) {
+                val targetPiece = gameState[newRow][newCol]
+                if (targetPiece == null || targetPiece.color != gameState[startRow][startCol]?.color) {
+                    moves.add(Pair(newRow, newCol))
+                }
+            }
+        }
+        return moves
     }
 
-    fun knightUpMid(coordinates: Pair<Int, Int>, isPawn: Boolean) {
+    fun knightBack(coordinates: Pair<Int, Int>, isWhite: Boolean): List<Pair<Int, Int>> {
+        val gameState = _gameState.value.state
+        val (startRow, startCol) = coordinates
+        val moves = mutableListOf<Pair<Int, Int>>()
 
+        val direction = if (isWhite) -1 else 1
+        val knightMoves = listOf(
+            Pair(-2 * direction, 1), Pair(-2 * direction, -1)
+        )
+        for (move in knightMoves) {
+            val newRow = startRow + move.first
+            val newCol = startCol + move.second
+            if (isValidPosition(newRow, newCol)) {
+                val targetPiece = gameState[newRow][newCol]
+                if (targetPiece == null || targetPiece.color != gameState[startRow][startCol]?.color) {
+                    moves.add(Pair(newRow, newCol))
+                }
+            }
+        }
+        return moves
     }
 
-    fun knightDownMid(coordinates: Pair<Int, Int>) {
-
-    }
-
-    fun knightBack(coordinates: Pair<Int, Int>) {
-
+    fun isValidPosition(row: Int, col: Int): Boolean {
+        return row in 0..7 && col in 0..7
     }
 
 }
