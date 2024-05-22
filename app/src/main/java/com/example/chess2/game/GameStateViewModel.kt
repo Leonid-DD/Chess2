@@ -2,6 +2,7 @@ package com.example.chess2.game
 
 import android.annotation.SuppressLint
 import android.util.Log
+import android.widget.Toast
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import com.example.chess2.game.figures.Figure
@@ -122,20 +123,19 @@ class GameStateViewModel : ViewModel() {
     fun selectChessPiece(coordinates: Pair<Int, Int>) {
         val row = coordinates.first
         val col = coordinates.second
-        Log.d("COORDINATEROW", row.toString())
-        Log.d("COORDINATECOL", col.toString())
         val figure = _gameState.value.state[row][col]
         Log.d("FIGURE", figure.toString())
-        if (selectedPiecePosition != null && isPlayerTurn()) {
-            // Piece is already selected, attempt to move it to the new position
-            moveChessPiece(row, col)
-        } else {
-            // No piece is selected, select the piece at the given position
-            if (figure != null && isPlayerTurn()) {
+        if (!isPlayerTurn()) {
+            return
+        }
+        if (selectedPiecePosition != null) {
+            if (figure != null && figure.color == if (FirebaseAuth.getInstance().uid == wPlayer.userId) PlayerColor.WHITE else PlayerColor.BLACK) {
                 selectedPiecePosition = Pair(figure.row, figure.col)
-            } else {
-                selectedPiecePosition = null
-            }
+                calculateValidMoves()
+            } else moveChessPiece(row, col)
+        } else if (figure != null && figure.color == if (FirebaseAuth.getInstance().uid == wPlayer.userId) PlayerColor.WHITE else PlayerColor.BLACK) {
+            selectedPiecePosition = Pair(figure.row, figure.col)
+            calculateValidMoves()
         }
     }
 
@@ -143,15 +143,18 @@ class GameStateViewModel : ViewModel() {
         val selectedPiece = selectedPiecePosition
         if (selectedPiece != null) {
             val (fromRow, fromCol) = selectedPiece
-            Log.d("FROMCOORDINATEROW", fromRow.toString())
-            Log.d("FROMCOORDINATECOL", fromCol.toString())
             val pieceToMove = _gameState.value.state[fromRow][fromCol]
             Log.d("PIECETOMOVE", pieceToMove.toString())
+            Log.d("FROMCOORDINATE", fromRow.toString() + " / " + fromCol.toString())
+            Log.d("TOCOORDINATE", toRow.toString() + " / " + toCol.toString())
+            Log.d("VALIDMOVES", highlightState.value.state.toString())
 
             // Check if the move is valid
-            if (isValidMove(pieceToMove!!, fromRow, fromCol, toRow, toCol)) {
+            if (isValidMove(fromRow, fromCol, toRow, toCol)) {
                 // Update local gameState
                 updateGameState(fromRow, fromCol, toRow, toCol)
+                //Clear highlight
+                updateHighlight()
                 // Clear selected piece position
                 selectedPiecePosition = null
                 // Change player turn
@@ -163,7 +166,7 @@ class GameStateViewModel : ViewModel() {
 
                 Log.d("ISPLAYERTURN", isPlayerTurn().toString())
             } else {
-                // Invalid move, handle accordingly (e.g., show error message)
+                Log.d("INVALIDTURN", "Piece was not moved")
             }
         }
     }
@@ -182,24 +185,19 @@ class GameStateViewModel : ViewModel() {
     }
 
     private fun isValidMove(
-        piece: Figure,
         fromRow: Int,
         fromCol: Int,
         toRow: Int,
         toCol: Int
     ): Boolean {
-        // Add your logic to validate the move based on the piece type and game rules
-        // For now, you can return true to allow any move
-        return true
+        Log.d("VALIDATION", _highlightState.value.state.contains(Pair(toRow, toCol)).toString())
+        return Pair(fromRow, fromCol) != Pair(toRow, toCol) && _highlightState.value.state.contains(Pair(toRow, toCol))
     }
 
     private fun updateGameState(fromRow: Int, fromCol: Int, toRow: Int, toCol: Int) {
         val currentState = _gameState.value.state.map { it.toMutableList() }
             .toMutableList() // Create a deep copy of the state
         val pieceToMove = currentState[fromRow][fromCol]
-//        if (pieceToMove!!.firstMove) {
-//            pieceToMove.firstMove = false
-//        }
         pieceToMove?.row = toRow
         pieceToMove?.col = toCol
         currentState[toRow][toCol] = pieceToMove
@@ -217,6 +215,10 @@ class GameStateViewModel : ViewModel() {
         // You can access the Firestore database instance here and update the document accordingly
         db.collection("games").document(gameId)
             .update("gameState", convertToFB(_gameState.value.state))
+    }
+
+    private fun updateHighlight() {
+        _highlightState.value = ValidMoves(mutableListOf())
     }
 
     fun changePlayer() {
@@ -242,10 +244,6 @@ class GameStateViewModel : ViewModel() {
         }
 
         return gameState?.wPlayer
-    }
-
-    fun getBoardState(): MutableList<MutableList<Figure?>> {
-        return _gameState.value.state
     }
 
     fun addGameStateListener() {
@@ -314,37 +312,12 @@ class GameStateViewModel : ViewModel() {
         }
         return result
     }
-
-    suspend fun getGameStateFromFB(): MutableList<MutableList<Figure?>> {
-        var gameState: GameFB? = null
-        val docRef = gameDetails()
-        try {
-            val documentSnapshot = docRef.get().await()
-            val deserializer = GameFBDeserializer()
-            gameState = deserializer.deserialize(documentSnapshot)
-            Log.d("FIRESTORESTATE", gameState.toString())
-        } catch (e: Exception) {
-
-        }
-        val result = convertFromFB(gameState!!.gameState)
-        Log.d("CONVERTEDSTATE", result.toString())
-        return result
-    }
-
     fun createGameId(user1: UserQueue, user2: UserQueue): String {
         return if (user1.userId.hashCode() > user2.userId.hashCode()) {
             user1.userId + "_" + user2.userId
         } else {
             user2.userId + "_" + user1.userId
         }
-    }
-
-    fun getCurrentPlayers(): String {
-        return "b = {${bPlayer.userId}} : w = {${wPlayer.userId}}"
-    }
-
-    fun playersSynced(): Boolean {
-        return this::wPlayer.isInitialized && this::bPlayer.isInitialized
     }
 
     fun calculateValidMoves() {
@@ -358,7 +331,7 @@ class GameStateViewModel : ViewModel() {
 
             when (selectedPiece?.name) {
                 FigureName.PAWN -> {
-                    validMoves.addAll(pawnFirstMove(coordinates, 1, isWhite))
+                    validMoves.addAll(pawnFirstMove(coordinates, 2, isWhite))
                     validMoves.addAll(pawnBaseMove(coordinates, 1, isWhite))
                     validMoves.addAll(pawnTake(coordinates, 1, isWhite))
                 }
@@ -411,6 +384,12 @@ class GameStateViewModel : ViewModel() {
         // First move double step
         if (startRow == startRowForTwoStep) {
             val twoStepsForward = Pair(startRow + length * direction, startCol)
+            var validMove = true
+            for (i in 1..length) {
+                val copy = Pair(startRow + i * direction, startCol)
+                validMove = gameState[copy.first][copy.second] == null
+                if (!validMove) return emptyList()
+            }
             if (isValidPosition(
                     twoStepsForward.first,
                     twoStepsForward.second
@@ -532,7 +511,11 @@ class GameStateViewModel : ViewModel() {
         return moves
     }
 
-    fun knightFront(coordinates: Pair<Int, Int>, isWhite: Boolean, isPawn: Boolean): List<Pair<Int, Int>> {
+    fun knightFront(
+        coordinates: Pair<Int, Int>,
+        isWhite: Boolean,
+        isPawn: Boolean
+    ): List<Pair<Int, Int>> {
         val gameState = _gameState.value.state
         val (startRow, startCol) = coordinates
         val moves = mutableListOf<Pair<Int, Int>>()
@@ -560,7 +543,11 @@ class GameStateViewModel : ViewModel() {
         return moves
     }
 
-    fun knightUpMid(coordinates: Pair<Int, Int>, isWhite: Boolean, isPawn: Boolean): List<Pair<Int, Int>> {
+    fun knightUpMid(
+        coordinates: Pair<Int, Int>,
+        isWhite: Boolean,
+        isPawn: Boolean
+    ): List<Pair<Int, Int>> {
         val gameState = _gameState.value.state
         val (startRow, startCol) = coordinates
         val moves = mutableListOf<Pair<Int, Int>>()
