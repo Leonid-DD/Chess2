@@ -1,4 +1,4 @@
-package com.example.chess2.game
+package com.example.chess2.game.classes
 
 import com.example.chess2.game.figures.Figure
 import com.example.chess2.user.User

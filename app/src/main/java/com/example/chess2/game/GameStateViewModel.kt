@@ -1,10 +1,10 @@
 package com.example.chess2.game
 
-import android.annotation.SuppressLint
 import android.util.Log
-import android.widget.Toast
-import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
+import com.example.chess2.game.classes.GameFB
+import com.example.chess2.game.classes.GameState
+import com.example.chess2.game.classes.ValidMoves
 import com.example.chess2.game.figures.Figure
 import com.example.chess2.game.figures.FigureName
 import com.example.chess2.game.figures.PlayerColor
@@ -13,12 +13,10 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
-import com.google.protobuf.Internal.BooleanList
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.tasks.await
-import java.util.UUID
 
 
 class GameStateViewModel : ViewModel() {

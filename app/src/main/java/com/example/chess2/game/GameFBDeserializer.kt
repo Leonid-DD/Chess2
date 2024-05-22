@@ -1,5 +1,6 @@
 package com.example.chess2.game
 
+import com.example.chess2.game.classes.GameFB
 import com.example.chess2.game.figures.Figure
 import com.example.chess2.game.figures.FigureName
 import com.example.chess2.game.figures.PlayerColor
