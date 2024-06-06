@@ -5,6 +5,6 @@ import com.example.chess2.game.figures.Figure
 data class UserQueue(
     val userId: String,
     var searching: Boolean,
-    var inGame: Boolean
+    var gameMode: GameMode?
 ) {
 }

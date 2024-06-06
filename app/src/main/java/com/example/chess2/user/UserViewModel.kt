@@ -29,7 +29,7 @@ class UserViewModel : ViewModel() {
         user = UserQueue(
             FirebaseAuth.getInstance().uid!!,
             false,
-            false
+            null
         )
     }
 
@@ -70,8 +70,12 @@ class UserViewModel : ViewModel() {
                         val userId = document.getString("userId")
                         if (userId != user.userId) {
                             val searching = document.getBoolean("searching") ?: false
-                            val inGame = document.getBoolean("inGame") ?: false
-                            matchingUsers.add(UserQueue(userId!!, searching, inGame))
+                            val gameMode =
+                                if
+                                    (document.getString("inGame") == null) null
+                                else
+                                    GameMode.valueOf(document.getString("inGame").toString())
+                            matchingUsers.add(UserQueue(userId!!, searching, gameMode))
                         }
                     }
 
@@ -90,11 +94,13 @@ class UserViewModel : ViewModel() {
     }
 
     fun onMatchingResult(result: List<UserQueue>?) {
-        _state.update { it.copy(
-            isMatchingSuccessful = result != null,
-            matchingError = null,
-            users = result
-        ) }
+        _state.update {
+            it.copy(
+                isMatchingSuccessful = result != null,
+                matchingError = null,
+                users = result
+            )
+        }
     }
 
     fun resetState() {

@@ -157,7 +157,7 @@ fun LoginScreen() {
                 .height(48.dp)
         ) {
             Icon(
-                painter = painterResource(id = android.R.drawable.ic_dialog_email), // Replace with Google icon
+                painter = painterResource(id = R.drawable.google_logo), // Replace with Google icon
                 contentDescription = null,
                 tint = Color.Unspecified,
                 modifier = Modifier.padding(end = 8.dp)

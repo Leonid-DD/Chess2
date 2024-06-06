@@ -45,6 +45,8 @@ class GameStateViewModel : ViewModel() {
     private var selectedPiecePosition: Pair<Int, Int>? = null
     private var whiteMove: Boolean = true
 
+    private var lastMove: Pair<Pair<Int, Int>, Pair<Int, Int>>? = null
+
     //Change to User
     fun initPlayers(user1: UserQueue, user2: UserQueue) {
         users = Pair(user1, user2)
@@ -129,11 +131,13 @@ class GameStateViewModel : ViewModel() {
         if (selectedPiecePosition != null) {
             if (figure != null && figure.color == if (FirebaseAuth.getInstance().uid == wPlayer.userId) PlayerColor.WHITE else PlayerColor.BLACK) {
                 selectedPiecePosition = Pair(figure.row, figure.col)
-                calculateValidMoves()
+                val validMoves = calculateValidMoves(null)
+                _highlightState.value = ValidMoves(validMoves)
             } else moveChessPiece(row, col)
         } else if (figure != null && figure.color == if (FirebaseAuth.getInstance().uid == wPlayer.userId) PlayerColor.WHITE else PlayerColor.BLACK) {
             selectedPiecePosition = Pair(figure.row, figure.col)
-            calculateValidMoves()
+            val validMoves = calculateValidMoves(null)
+            _highlightState.value = ValidMoves(validMoves)
         }
     }
 
@@ -189,7 +193,9 @@ class GameStateViewModel : ViewModel() {
         toCol: Int
     ): Boolean {
         Log.d("VALIDATION", _highlightState.value.state.contains(Pair(toRow, toCol)).toString())
-        return Pair(fromRow, fromCol) != Pair(toRow, toCol) && _highlightState.value.state.contains(Pair(toRow, toCol))
+        return Pair(fromRow, fromCol) != Pair(toRow, toCol) && _highlightState.value.state.contains(
+            Pair(toRow, toCol)
+        )
     }
 
     private fun updateGameState(fromRow: Int, fromCol: Int, toRow: Int, toCol: Int) {
@@ -198,6 +204,7 @@ class GameStateViewModel : ViewModel() {
         val pieceToMove = currentState[fromRow][fromCol]
         pieceToMove?.row = toRow
         pieceToMove?.col = toCol
+        pieceToMove?.firstMove = false
         currentState[toRow][toCol] = pieceToMove
         currentState[fromRow][fromCol] = null
 
@@ -310,6 +317,7 @@ class GameStateViewModel : ViewModel() {
         }
         return result
     }
+
     fun createGameId(user1: UserQueue, user2: UserQueue): String {
         return if (user1.userId.hashCode() > user2.userId.hashCode()) {
             user1.userId + "_" + user2.userId
@@ -318,130 +326,145 @@ class GameStateViewModel : ViewModel() {
         }
     }
 
-    fun calculateValidMoves() {
-        if (selectedPiecePosition != null) {
-            val selectedPiece =
+    fun calculateValidMoves(figureCoordinates: Pair<Int, Int>?): MutableList<Pair<Int, Int>> {
+
+        var selectedPiece: Figure? = null
+        if (figureCoordinates != null)
+            selectedPiece =
+                gameState.value.state[figureCoordinates!!.first][figureCoordinates!!.second]
+        else
+            selectedPiece =
                 gameState.value.state[selectedPiecePosition!!.first][selectedPiecePosition!!.second]
-            val coordinates: Pair<Int, Int> = Pair(selectedPiece?.row!!, selectedPiece?.col!!)
-            val isWhite = selectedPiece?.color == PlayerColor.WHITE
-            val validMoves = mutableListOf<Pair<Int, Int>>()
-            validMoves.add(selectedPiecePosition!!)
 
-            when (selectedPiece?.name) {
-                FigureName.PAWN -> {
-                    validMoves.addAll(pawnFirstMove(coordinates, 2, isWhite))
-                    validMoves.addAll(pawnBaseMove(coordinates, 1, isWhite))
-                    validMoves.addAll(pawnTake(coordinates, 1, isWhite))
-                }
+        val coordinates: Pair<Int, Int> = Pair(selectedPiece?.row!!, selectedPiece?.col!!)
+        val isWhite = selectedPiece?.color == PlayerColor.WHITE
+        val validMoves = mutableListOf<Pair<Int, Int>>()
+        validMoves.add(selectedPiecePosition!!)
 
-                FigureName.BISHOP -> {
-                    validMoves.addAll(diagonalLineMove(coordinates, 7))
-                }
-
-                FigureName.ROOK -> {
-                    validMoves.addAll(straightLineMove(coordinates, 7))
-                }
-
-                FigureName.KNIGHT -> {
-                    validMoves.addAll(knightFront(coordinates, isWhite, false))
-                    validMoves.addAll(knightUpMid(coordinates, isWhite, false))
-                    validMoves.addAll(knightDownMid(coordinates, isWhite))
-                    validMoves.addAll(knightBack(coordinates, isWhite))
-                }
-
-                FigureName.KING -> {
-                    validMoves.addAll(straightLineMove(coordinates, 1))
-                    validMoves.addAll(diagonalLineMove(coordinates, 1))
-                }
-
-                FigureName.QUEEN -> {
-                    validMoves.addAll(straightLineMove(coordinates, 7))
-                    validMoves.addAll(diagonalLineMove(coordinates, 7))
-                }
-
-                FigureName.PAWN_ROOK -> {
-                    validMoves.addAll(pawnFirstMove(coordinates, 3, isWhite))
-                    validMoves.addAll(pawnBaseMove(coordinates, 2, isWhite))
-                    validMoves.addAll(pawnTake(coordinates, 1, isWhite))
-                }
-
-                FigureName.PAWN_KNIGHT -> {
-                    validMoves.addAll(pawnFirstMove(coordinates, 2, isWhite))
-                    validMoves.addAll(pawnBaseMove(coordinates, 1, isWhite))
-                    validMoves.addAll(pawnTake(coordinates, 1, isWhite))
-                    validMoves.addAll(knightFront(coordinates, isWhite, true))
-                }
-
-                FigureName.PAWN_BISHOP -> {
-                    validMoves.addAll(pawnFirstMove(coordinates, 2, isWhite))
-                    validMoves.addAll(pawnBaseMove(coordinates, 1, isWhite))
-                    validMoves.addAll(pawnTake(coordinates, 2, isWhite))
-                }
-
-                FigureName.ROOK_PAWN -> {
-                    validMoves.addAll(straightLineMove(coordinates, 3))
-                    validMoves.addAll(pawnTake(coordinates, 1, isWhite))
-                }
-
-                FigureName.ROOK_KNIGHT -> {
-                    validMoves.addAll(straightLineMove(coordinates, 2))
-                    validMoves.addAll(knightFront(coordinates, isWhite, false))
-                    validMoves.addAll(knightUpMid(coordinates, isWhite, false))
-                    validMoves.addAll(knightDownMid(coordinates, isWhite))
-                    validMoves.addAll(knightBack(coordinates, isWhite))
-                }
-
-                FigureName.ROOK_BISHOP -> {
-                    validMoves.addAll(straightLineMove(coordinates, 2))
-                    validMoves.addAll(diagonalLineMove(coordinates, 1))
-                }
-
-                FigureName.KNIGHT_PAWN -> {
-                    validMoves.addAll(pawnFirstMove(coordinates, 2, isWhite))
-                    validMoves.addAll(pawnBaseMove(coordinates, 1, isWhite))
-                    validMoves.addAll(pawnTake(coordinates, 1, isWhite))
-                    validMoves.addAll(knightFront(coordinates, isWhite, true))
-                    validMoves.addAll(knightUpMid(coordinates, isWhite, true))
-                    validMoves.addAll(knightDownMid(coordinates, isWhite))
-                    validMoves.addAll(knightBack(coordinates, isWhite))
-                }
-
-                FigureName.KNIGHT_ROOK -> {
-                    validMoves.addAll(knightFront(coordinates, isWhite, false))
-                    validMoves.addAll(knightBack(coordinates, isWhite))
-                    validMoves.addAll(straightLineMove(coordinates, 1))
-                }
-
-                FigureName.KNIGHT_BISHOP -> {
-                    validMoves.addAll(knightFront(coordinates, isWhite, false))
-                    validMoves.addAll(knightBack(coordinates, isWhite))
-                    validMoves.addAll(diagonalLineMove(coordinates, 1))
-                }
-
-                FigureName.BISHOP_PAWN -> {
-                    validMoves.addAll(diagonalLineMove(coordinates, 3))
-                    validMoves.addAll(pawnFirstMove(coordinates, 2, isWhite))
-                    validMoves.addAll(pawnBaseMove(coordinates, 1, isWhite))
-                }
-
-                FigureName.BISHOP_ROOK -> {
-                    validMoves.addAll(diagonalLineMove(coordinates, 2))
-                    validMoves.addAll(straightLineMove(coordinates, 1))
-                }
-
-                FigureName.BISHOP_KNIGHT -> {
-                    validMoves.addAll(diagonalLineMove(coordinates, 2))
-                    validMoves.addAll(knightFront(coordinates, isWhite, false))
-                    validMoves.addAll(knightUpMid(coordinates, isWhite, false))
-                    validMoves.addAll(knightDownMid(coordinates, isWhite))
-                    validMoves.addAll(knightBack(coordinates, isWhite))
-                }
-
-                else -> { }
+        when (selectedPiece?.name) {
+            FigureName.PAWN -> {
+                validMoves.addAll(pawnFirstMove(coordinates, 2, isWhite))
+                validMoves.addAll(pawnBaseMove(coordinates, 1, isWhite))
+                validMoves.addAll(pawnTake(coordinates, 1, isWhite))
+                validMoves.addAll(enPassantMoves(coordinates, lastMove, isWhite))
             }
 
-            _highlightState.value = ValidMoves(validMoves)
+            FigureName.BISHOP -> {
+                validMoves.addAll(diagonalLineMove(coordinates, 7))
+            }
+
+            FigureName.ROOK -> {
+                validMoves.addAll(straightLineMove(coordinates, 7))
+            }
+
+            FigureName.KNIGHT -> {
+                validMoves.addAll(knightFront(coordinates, isWhite, false))
+                validMoves.addAll(knightUpMid(coordinates, isWhite, false))
+                validMoves.addAll(knightDownMid(coordinates, isWhite))
+                validMoves.addAll(knightBack(coordinates, isWhite))
+            }
+
+            FigureName.KING -> {
+                val kingMoved = !selectedPiece.firstMove
+                val row = if (isWhite) 7 else 0
+                val rookMoved = BooleanArray(8)
+                rookMoved[0] =
+                    !gameState.value.state[row][0]?.firstMove!! // Queenside rook (a-file)
+                rookMoved[7] =
+                    !gameState.value.state[row][7]?.firstMove!! // Kingside rook (h-file)
+
+                validMoves.addAll(straightLineMove(coordinates, 1))
+                validMoves.addAll(diagonalLineMove(coordinates, 1))
+                validMoves.addAll(castlingMoves(coordinates, kingMoved, rookMoved, isWhite))
+            }
+
+            FigureName.QUEEN -> {
+                validMoves.addAll(straightLineMove(coordinates, 7))
+                validMoves.addAll(diagonalLineMove(coordinates, 7))
+            }
+
+            FigureName.PAWN_ROOK -> {
+                validMoves.addAll(pawnFirstMove(coordinates, 3, isWhite))
+                validMoves.addAll(pawnBaseMove(coordinates, 2, isWhite))
+                validMoves.addAll(pawnTake(coordinates, 1, isWhite))
+            }
+
+            FigureName.PAWN_KNIGHT -> {
+                validMoves.addAll(pawnFirstMove(coordinates, 2, isWhite))
+                validMoves.addAll(pawnBaseMove(coordinates, 1, isWhite))
+                validMoves.addAll(pawnTake(coordinates, 1, isWhite))
+                validMoves.addAll(knightFront(coordinates, isWhite, true))
+            }
+
+            FigureName.PAWN_BISHOP -> {
+                validMoves.addAll(pawnFirstMove(coordinates, 2, isWhite))
+                validMoves.addAll(pawnBaseMove(coordinates, 1, isWhite))
+                validMoves.addAll(pawnTake(coordinates, 2, isWhite))
+            }
+
+            FigureName.ROOK_PAWN -> {
+                validMoves.addAll(straightLineMove(coordinates, 3))
+                validMoves.addAll(pawnTake(coordinates, 1, isWhite))
+            }
+
+            FigureName.ROOK_KNIGHT -> {
+                validMoves.addAll(straightLineMove(coordinates, 2))
+                validMoves.addAll(knightFront(coordinates, isWhite, false))
+                validMoves.addAll(knightUpMid(coordinates, isWhite, false))
+                validMoves.addAll(knightDownMid(coordinates, isWhite))
+                validMoves.addAll(knightBack(coordinates, isWhite))
+            }
+
+            FigureName.ROOK_BISHOP -> {
+                validMoves.addAll(straightLineMove(coordinates, 2))
+                validMoves.addAll(diagonalLineMove(coordinates, 1))
+            }
+
+            FigureName.KNIGHT_PAWN -> {
+                validMoves.addAll(pawnFirstMove(coordinates, 2, isWhite))
+                validMoves.addAll(pawnBaseMove(coordinates, 1, isWhite))
+                validMoves.addAll(pawnTake(coordinates, 1, isWhite))
+                validMoves.addAll(knightFront(coordinates, isWhite, true))
+                validMoves.addAll(knightUpMid(coordinates, isWhite, true))
+                validMoves.addAll(knightDownMid(coordinates, isWhite))
+                validMoves.addAll(knightBack(coordinates, isWhite))
+            }
+
+            FigureName.KNIGHT_ROOK -> {
+                validMoves.addAll(knightFront(coordinates, isWhite, false))
+                validMoves.addAll(knightBack(coordinates, isWhite))
+                validMoves.addAll(straightLineMove(coordinates, 1))
+            }
+
+            FigureName.KNIGHT_BISHOP -> {
+                validMoves.addAll(knightFront(coordinates, isWhite, false))
+                validMoves.addAll(knightBack(coordinates, isWhite))
+                validMoves.addAll(diagonalLineMove(coordinates, 1))
+            }
+
+            FigureName.BISHOP_PAWN -> {
+                validMoves.addAll(diagonalLineMove(coordinates, 3))
+                validMoves.addAll(pawnFirstMove(coordinates, 2, isWhite))
+                validMoves.addAll(pawnBaseMove(coordinates, 1, isWhite))
+            }
+
+            FigureName.BISHOP_ROOK -> {
+                validMoves.addAll(diagonalLineMove(coordinates, 2))
+                validMoves.addAll(straightLineMove(coordinates, 1))
+            }
+
+            FigureName.BISHOP_KNIGHT -> {
+                validMoves.addAll(diagonalLineMove(coordinates, 2))
+                validMoves.addAll(knightFront(coordinates, isWhite, false))
+                validMoves.addAll(knightUpMid(coordinates, isWhite, false))
+                validMoves.addAll(knightDownMid(coordinates, isWhite))
+                validMoves.addAll(knightBack(coordinates, isWhite))
+            }
+
+            else -> {}
         }
+
+        return validMoves
 
     }
 
@@ -527,6 +550,84 @@ class GameStateViewModel : ViewModel() {
                         moves.add(Pair(newRow, newCol)) // Capture
                     }
                     break
+                }
+            }
+        }
+
+        return moves
+    }
+
+    fun enPassantMoves(
+        coordinates: Pair<Int, Int>,
+        lastMove: Pair<Pair<Int, Int>, Pair<Int, Int>>?,
+        isWhite: Boolean
+    ): List<Pair<Int, Int>> {
+        val gameState = _gameState.value.state
+        val (startRow, startCol) = coordinates
+        val moves = mutableListOf<Pair<Int, Int>>()
+
+        if (lastMove == null) return moves
+
+        val (from, to) = lastMove
+        val direction = if (isWhite) -1 else 1
+        val enPassantRow = if (isWhite) 3 else 4
+
+        if (startRow == enPassantRow) {
+            val potentialEnPassantCols = listOf(startCol - 1, startCol + 1)
+            for (col in potentialEnPassantCols) {
+                if (isValidPosition(
+                        startRow,
+                        col
+                    ) && gameState[startRow][col]?.name == FigureName.PAWN && gameState[startRow][col]?.color != (if (isWhite) PlayerColor.WHITE else PlayerColor.BLACK)
+                ) {
+                    if (to == Pair(enPassantRow, col) && from == Pair(
+                            enPassantRow + direction * 2,
+                            col
+                        )
+                    ) {
+                        moves.add(Pair(startRow + direction, col))
+                    }
+                }
+            }
+        }
+
+        return moves
+    }
+
+    fun castlingMoves(
+        coordinates: Pair<Int, Int>,
+        kingMoved: Boolean,
+        rookMoved: BooleanArray,
+        isWhite: Boolean
+    ): List<Pair<Int, Int>> {
+        val gameState = _gameState.value.state
+        val (startRow, startCol) = coordinates
+        val moves = mutableListOf<Pair<Int, Int>>()
+
+        if (kingMoved) return moves
+
+        val row = if (isWhite) 7 else 0
+
+        val castlingConditions = listOf(
+            Pair(
+                Pair(7, 0),
+                listOf(Pair(row, 1), Pair(row, 2), Pair(row, 3))
+            ), // Queen side castling
+            Pair(Pair(7, 7), listOf(Pair(row, 5), Pair(row, 6))) // King side castling
+        )
+
+        for ((rookPos, positionsBetween) in castlingConditions) {
+            val (rookRow, rookCol) = rookPos
+
+            if (!rookMoved[rookCol] && gameState[rookRow][rookCol]?.name == FigureName.ROOK && gameState[rookRow][rookCol]?.color == (if (isWhite) PlayerColor.WHITE else PlayerColor.BLACK)) {
+                if (positionsBetween.all { gameState[it.first][it.second] == null } && positionsBetween.none {
+                        isSquareAttacked(
+                            it,
+                            gameState,
+                            !isWhite
+                        )
+                    }) {
+                    moves.add(Pair(startRow, if (rookCol == 0) startCol - 2 else startCol + 2))
                 }
             }
         }
@@ -702,6 +803,70 @@ class GameStateViewModel : ViewModel() {
 
     fun isValidPosition(row: Int, col: Int): Boolean {
         return row in 0..7 && col in 0..7
+    }
+
+    fun isMoveSafe(start: Pair<Int, Int>, end: Pair<Int, Int>): Boolean {
+        val gameState = _gameState.value.state
+        // Create a deep copy of the game state
+        val tempGameState = gameState.map { it.toMutableList() }.toMutableList()
+
+        // Simulate the move
+        val piece = tempGameState[start.first][start.second]
+        tempGameState[start.first][start.second] = null
+        tempGameState[end.first][end.second] = piece
+
+        // Find the king's position
+        val kingPosition = tempGameState.flatten()
+            .firstOrNull { it?.name == FigureName.KING && it?.color == piece?.color }
+            ?.let { Pair(it.row, it.col) }
+
+        return kingPosition != null && !isSquareAttacked(
+            kingPosition,
+            tempGameState,
+            piece?.color == PlayerColor.WHITE
+        )
+    }
+
+    fun isSquareAttacked(
+        square: Pair<Int, Int>,
+        gameState: List<List<Figure?>>,
+        isWhite: Boolean
+    ): Boolean {
+
+        val (targetRow, targetCol) = square
+        val opponentColor = if (isWhite) PlayerColor.BLACK else PlayerColor.WHITE
+
+        for (row in gameState.indices) {
+            for (col in gameState[row].indices) {
+                val piece = gameState[row][col]
+                if (piece != null && piece.color == opponentColor) {
+                    val possibleMoves = calculateValidMoves(Pair(row, col))
+                    if (possibleMoves.contains(square)) {
+                        return true
+                    }
+                }
+            }
+        }
+        return false
+    }
+
+    // Check if the king is in check in the given game state
+    fun isKingInCheck(gameState: List<List<Figure?>>, isWhite: Boolean): Boolean {
+        val kingPosition = findKingPosition(gameState, isWhite) ?: return true
+        return isSquareAttacked(kingPosition, gameState, isWhite)
+    }
+
+    // Find the position of the king
+    fun findKingPosition(gameState: List<List<Figure?>>, isWhite: Boolean): Pair<Int, Int>? {
+        for (row in gameState.indices) {
+            for (col in gameState[row].indices) {
+                val piece = gameState[row][col]
+                if (piece != null && piece.name == FigureName.KING && piece.color == if (isWhite) PlayerColor.WHITE else PlayerColor.BLACK) {
+                    return Pair(row, col)
+                }
+            }
+        }
+        return null
     }
 
 }

@@ -4,6 +4,7 @@ import com.example.chess2.game.classes.GameFB
 import com.example.chess2.game.figures.Figure
 import com.example.chess2.game.figures.FigureName
 import com.example.chess2.game.figures.PlayerColor
+import com.example.chess2.user.GameMode
 import com.example.chess2.user.UserQueue
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestoreException
@@ -14,6 +15,7 @@ class GameFBDeserializer {
     fun deserialize(snapshot: DocumentSnapshot): GameFB {
         val gameId = snapshot.id
         val gameState = parseGameState(snapshot)
+
         val wPlayerData = snapshot.get("wplayer") as? Map<*, *>
         val bPlayerData = snapshot.get("bplayer") as? Map<*, *>
 
@@ -26,8 +28,8 @@ class GameFBDeserializer {
     private fun parseUserQueue(data: Map<*, *>): UserQueue {
         val userId = data["userId"] as String
         val searching = data["searching"] as Boolean
-        val inGame = data["inGame"] as Boolean
-        return UserQueue(userId, searching, inGame)
+        val gameMode = GameMode.valueOf(data["gameMode"] as String)
+        return UserQueue(userId, searching, gameMode)
     }
 
     private fun parseGameState(snapshot: DocumentSnapshot): MutableList<Figure> {
