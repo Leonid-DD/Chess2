@@ -28,7 +28,7 @@ class GameFBDeserializer {
     private fun parseUserQueue(data: Map<*, *>): UserQueue {
         val userId = data["userId"] as String
         val searching = data["searching"] as Boolean
-        val gameMode = GameMode.valueOf(data["gameMode"] as String)
+        val gameMode = if (data["gameMode"] != null) GameMode.valueOf(data["gameMode"] as String) else null
         return UserQueue(userId, searching, gameMode)
     }
 
@@ -41,7 +41,8 @@ class GameFBDeserializer {
             val col = figureData["col"] as Long
             val color = PlayerColor.valueOf(figureData["color"] as String)
             val name = FigureName.valueOf(figureData["name"] as String)
-            gameStateList.add(Figure(row.toInt(), col.toInt(), color, name))
+            val firstMove = figureData["firstMove"] as Boolean
+            gameStateList.add(Figure(row.toInt(), col.toInt(), color, name, firstMove))
         }
 
         return gameStateList

@@ -8,6 +8,9 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -19,17 +22,22 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.rememberNavController
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.compose.composable
-import com.example.chess2.auth.SignInScreen
 import com.example.chess2.auth.SignInViewModel
 import com.example.chess2.auth.google.GoogleAuthUIClient
+import com.example.chess2.auth.google.UserData
 import com.example.chess2.game.GameStateViewModel
 import com.example.chess2.temp.GameScreen
-import com.example.chess2.temp.SearchGame
+import com.example.chess2.temp.SearchScreen
+import com.example.chess2.ui.LoginScreen
 import com.example.chess2.ui.theme.Chess2Theme
 import com.example.chess2.user.UserQueue
 import com.example.chess2.user.UserViewModel
@@ -108,7 +116,7 @@ class MainActivity : ComponentActivity() {
                                 }
                             }
 
-                            SignInScreen(
+                            LoginScreen(
                                 state = state,
                                 onSignInClick = {
                                     lifecycleScope.launch {
@@ -144,7 +152,12 @@ class MainActivity : ComponentActivity() {
                                 }
                             }
 
-                            SearchGame(
+                            SearchScreen(
+                                userData = FirebaseAuth.getInstance().currentUser?.run { UserData(
+                                    userId = uid,
+                                    username = displayName,
+                                    profilePictureUrl = photoUrl?.toString()
+                                ) },
                                 state = state,
                                 searchClick = {
                                     if (userViewModel.getSearchStatus()) {
@@ -162,7 +175,14 @@ class MainActivity : ComponentActivity() {
                                             Toast.LENGTH_SHORT
                                         ).show()
                                     }
+                                    //trouble methods, both don't work, if removed app is not crashing
+                                    //navController.navigate("sign_in")
                                     //navController.popBackStack()
+                                },
+                                changeGameModeClick = {
+                                    if (!userViewModel.getSearchStatus()) {
+                                        userViewModel.changeGameMode(it)
+                                    }
                                 }
                             )
                         }
@@ -185,9 +205,20 @@ class MainActivity : ComponentActivity() {
                                     GameScreen(gameViewModel)
                                 }
                             } else {
-                                // Show a loading indicator or placeholder while data is being fetched
-                                // Alternatively, you can show an empty UI or handle this case according to your app's design
-                                Text("Loading...")
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(Color(0xFFD9E8D9)),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center
+                                ) {
+                                    Text(
+                                        text = "Загрузка...",
+                                        fontSize = 24.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.Black
+                                    )
+                                }
                             }
 
                         }

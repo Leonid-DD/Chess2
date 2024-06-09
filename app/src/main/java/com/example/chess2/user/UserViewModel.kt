@@ -1,5 +1,6 @@
 package com.example.chess2.user
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.chess2.auth.google.SignInResult
@@ -29,7 +30,7 @@ class UserViewModel : ViewModel() {
         user = UserQueue(
             FirebaseAuth.getInstance().uid!!,
             false,
-            null
+            GameMode.CLASSIC
         )
     }
 
@@ -40,6 +41,7 @@ class UserViewModel : ViewModel() {
     fun startSearching() {
         user.searching = true
         userDetails().set(user)
+        Log.d("USERDETAILS", userDetails().get().toString())
         findMatchingUsers()
     }
 
@@ -72,9 +74,9 @@ class UserViewModel : ViewModel() {
                             val searching = document.getBoolean("searching") ?: false
                             val gameMode =
                                 if
-                                    (document.getString("inGame") == null) null
+                                    (document.getString("gameMode") == null) null
                                 else
-                                    GameMode.valueOf(document.getString("inGame").toString())
+                                    GameMode.valueOf(document.getString("gameMode").toString())
                             matchingUsers.add(UserQueue(userId!!, searching, gameMode))
                         }
                     }
@@ -111,5 +113,14 @@ class UserViewModel : ViewModel() {
     override fun onCleared() {
         super.onCleared()
         searchListener?.remove()
+    }
+
+    fun changeGameMode(gameMode: String) {
+        user.gameMode = when (gameMode) {
+            "Классика" -> GameMode.CLASSIC
+            "Рандом" -> GameMode.RANDOM
+            "Шахматы 2.0" -> GameMode.CHESS2
+            else -> null
+        }
     }
 }

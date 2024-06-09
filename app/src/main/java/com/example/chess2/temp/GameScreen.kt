@@ -9,11 +9,15 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -60,21 +64,67 @@ fun GameScreen(
     val gameState by gameStateViewModel.gameState.collectAsState()
     val highlightedSquares by gameStateViewModel.highlightState.collectAsState()
 
+    val whitePlayerTime by gameStateViewModel.whitePlayerTime.collectAsState()
+    val blackPlayerTime by gameStateViewModel.blackPlayerTime.collectAsState()
+    val isWhitePlayerTurn by gameStateViewModel.whiteMove.collectAsState()
+
     val currentUserId = FirebaseAuth.getInstance().uid
     val whitePlayer = remember { gameStateViewModel.getWhitePlayer() }
+    val isWhitePlayer = currentUserId == whitePlayer.userId
 
-    Chessboard(
-        gameState = gameState.state,
-        highlightState = highlightedSquares.state,
-        currentPlayerColor =
-        if (currentUserId == whitePlayer.userId)
-            PlayerColor.WHITE
-        else
-            PlayerColor.BLACK,
-        onPieceSelected = { coordinates -> gameStateViewModel.selectChessPiece(coordinates) },
-        userId = currentUserId,
-        whiteUserId = whitePlayer.userId
-    )
+    val currentUserMoveText = if (isWhitePlayerTurn == isWhitePlayer) "Ваш ход" else ""
+    val opponentMoveText = if (isWhitePlayerTurn == isWhitePlayer) "" else "Ход противника"
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFFD9E8D9)),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            PlayerTimer(timeInSeconds = if (isWhitePlayer) blackPlayerTime else whitePlayerTime)
+            Text(
+                text = opponentMoveText,
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.Black,
+                modifier = Modifier.align(Alignment.CenterVertically)
+            )
+        }
+
+        Chessboard(
+            gameState = gameState.state,
+            highlightState = highlightedSquares.state,
+            currentPlayerColor =
+            if (currentUserId == whitePlayer.userId)
+                PlayerColor.WHITE
+            else
+                PlayerColor.BLACK,
+            onPieceSelected = { coordinates -> gameStateViewModel.selectChessPiece(coordinates) }
+        )
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = currentUserMoveText,
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.Black,
+                modifier = Modifier.align(Alignment.CenterVertically)
+            )
+            PlayerTimer(timeInSeconds = if (isWhitePlayer) whitePlayerTime else blackPlayerTime)
+        }
+    }
 }
 
 @Composable
@@ -82,9 +132,7 @@ fun Chessboard(
     gameState: List<List<Figure?>>,
     highlightState: List<Pair<Int, Int>>,
     currentPlayerColor: PlayerColor,
-    onPieceSelected: (Pair<Int, Int>) -> Unit,
-    userId: String?,
-    whiteUserId: String?
+    onPieceSelected: (Pair<Int, Int>) -> Unit
 ) {
     Column {
         val rows =
@@ -107,27 +155,6 @@ fun Chessboard(
                 }
             }
         }
-//        Spacer(modifier = Modifier.height(20.dp))
-//        Text(
-//            text = currentPlayerColor.toString(),
-//            textAlign = TextAlign.Center,
-//            fontSize = 36.sp,
-//            fontWeight = FontWeight.SemiBold
-//        )
-//        Spacer(modifier = Modifier.height(20.dp))
-//        Text(
-//            text = if (userId != null) userId else "none",
-//            textAlign = TextAlign.Center,
-//            fontSize = 36.sp,
-//            fontWeight = FontWeight.SemiBold
-//        )
-//        Spacer(modifier = Modifier.height(20.dp))
-//        Text(
-//            text = if (whiteUserId != null) whiteUserId else "none",
-//            textAlign = TextAlign.Center,
-//            fontSize = 36.sp,
-//            fontWeight = FontWeight.SemiBold
-//        )
     }
 }
 
@@ -189,45 +216,15 @@ fun getDrawableResourceId(context: Context, resourceName: String): Int {
     return context.resources.getIdentifier(resourceName, "drawable", context.packageName)
 }
 
-@Preview
 @Composable
-fun ChessboardPreview() {
-    val gameState = List(8) { row ->
-        List(8) { col ->
-            when (row) {
-                0 -> when (col) {
-                    0, 7 -> Figure(row, col, PlayerColor.BLACK, FigureName.ROOK)
-                    1, 6 -> Figure(row, col, PlayerColor.BLACK, FigureName.KNIGHT)
-                    2, 5 -> Figure(row, col, PlayerColor.BLACK, FigureName.BISHOP)
-                    3 -> Figure(row, col, PlayerColor.BLACK, FigureName.QUEEN)
-                    4 -> Figure(row, col, PlayerColor.BLACK, FigureName.KING)
-                    else -> null
-                }
+fun PlayerTimer(timeInSeconds: Int) {
+    val minutes = timeInSeconds / 60
+    val seconds = timeInSeconds % 60
 
-                1 -> Figure(row, col, PlayerColor.BLACK, FigureName.PAWN)
-                6 -> Figure(row, col, PlayerColor.WHITE, FigureName.PAWN)
-                7 -> when (col) {
-                    0, 7 -> Figure(row, col, PlayerColor.WHITE, FigureName.ROOK)
-                    1, 6 -> Figure(row, col, PlayerColor.WHITE, FigureName.KNIGHT)
-                    2, 5 -> Figure(row, col, PlayerColor.WHITE, FigureName.BISHOP)
-                    3 -> Figure(row, col, PlayerColor.WHITE, FigureName.QUEEN)
-                    4 -> Figure(row, col, PlayerColor.WHITE, FigureName.KING)
-                    else -> null
-                }
-
-                else -> null
-            }
-        }
-    }
-
-    val selectedPiece = remember { mutableStateOf<Pair<Int, Int>?>(null) }
-    val possibleMoves = remember { mutableStateOf<List<Pair<Int, Int>>>(emptyList()) }
-
-//    Chessboard(
-//        gameState,
-//        PlayerColor.BLACK,
-//        onPieceSelected = { },
-//        null,
-//        null
-//    )
+    Text(
+        text = String.format("%02d:%02d", minutes, seconds),
+        fontSize = 24.sp,
+        fontWeight = FontWeight.Bold,
+        color = Color.Black
+    )
 }
