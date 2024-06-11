@@ -49,55 +49,6 @@ import com.example.chess2.R
 import com.example.chess2.auth.google.UserData
 import com.example.chess2.user.MatchingState
 
-//@Composable
-//fun SearchGame(
-//    state: MatchingState,
-//    searchClick: () -> Unit,
-//    signOutClick: () -> Unit
-//) {
-//    var isPressed by remember { mutableStateOf(false) }
-//
-//    val context = LocalContext.current
-//    LaunchedEffect(key1 = state.matchingError) {
-//        state.matchingError?.let { error ->
-//            Toast.makeText(
-//                context,
-//                error,
-//                Toast.LENGTH_SHORT
-//            ).show()
-//        }
-//    }
-//
-//    Column(
-//        modifier = Modifier
-//            .fillMaxSize(),
-//        horizontalAlignment = Alignment.CenterHorizontally,
-//        verticalArrangement = Arrangement.Center
-//    ) {
-//        Button(
-//            onClick = {
-//                isPressed = !isPressed
-//                searchClick()
-//            }
-//        ) {
-//            if (isPressed) {
-//                Text("Stop searching")
-//            } else {
-//                Text("Start searching")
-//            }
-//        }
-//        Spacer(modifier = Modifier.height(40.dp))
-//        Button(
-//            onClick = {
-//                signOutClick()
-//            }
-//        ) {
-//            Text(text = "Sign out")
-//        }
-//    }
-//}
-
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchScreen(
@@ -205,7 +156,7 @@ fun SearchScreen(
                     fontWeight = FontWeight.Bold,
                     color = Color.Black
                 ),
-                onValueChange = { changeGameModeClick(selectedMode) },
+                onValueChange = {  },
                 label = {
                     Text(
                         "Выберите игровой режим",
@@ -231,6 +182,7 @@ fun SearchScreen(
                         ) },
                         onClick = {
                             selectedMode = selectionOption
+                            changeGameModeClick(selectionOption)
                             expanded = false
                         }
                     )
@@ -248,7 +200,7 @@ fun SearchScreen(
         ) {
             Text(
                 text = if (isPressed) {
-                    "Прекратить поиск"
+                    "Завершить поиск"
                 } else {
                     "Начать поиск"
                 },

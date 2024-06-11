@@ -3,6 +3,7 @@ package com.example.chess2.auth.google
 import android.content.Context
 import android.content.Intent
 import android.content.IntentSender
+import android.widget.Toast
 import com.example.chess2.R
 import com.google.android.gms.auth.api.identity.BeginSignInRequest
 import com.google.android.gms.auth.api.identity.SignInClient
@@ -25,7 +26,11 @@ class GoogleAuthUIClient(
                 buildSignInRequest()
             ).await()
         } catch (e: Exception) {
-            e.printStackTrace()
+            Toast.makeText(
+                context,
+                "Error signing in. Try later.",
+                Toast.LENGTH_SHORT
+            ).show()
             if (e is CancellationException) throw e
             null
         }

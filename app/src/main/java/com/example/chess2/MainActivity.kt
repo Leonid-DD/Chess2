@@ -1,7 +1,9 @@
 package com.example.chess2
 
 import android.annotation.SuppressLint
+import android.app.AlertDialog
 import android.os.Bundle
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -107,11 +109,11 @@ class MainActivity : ComponentActivity() {
                                         Toast.LENGTH_SHORT
                                     ).show()
 
+                                    navController.navigate("search_game")
+
                                     signInViewModel.resetState()
 
                                     userViewModel.initUser()
-
-                                    navController.navigate("search_game")
 
                                 }
                             }
@@ -148,16 +150,15 @@ class MainActivity : ComponentActivity() {
 
                                     //Получить доски пользователей из БД по ID из поиска
 
-                                    gameViewModel.initPlayers(state.users?.get(0)!!, state.users?.get(1)!!)
+                                    gameViewModel.initPlayers(
+                                        state.users?.get(0)!!,
+                                        state.users?.get(1)!!
+                                    )
                                 }
                             }
 
                             SearchScreen(
-                                userData = FirebaseAuth.getInstance().currentUser?.run { UserData(
-                                    userId = uid,
-                                    username = displayName,
-                                    profilePictureUrl = photoUrl?.toString()
-                                ) },
+                                userData = googleAuthUiClient.getSignedInUser(),
                                 state = state,
                                 searchClick = {
                                     if (userViewModel.getSearchStatus()) {
@@ -167,28 +168,37 @@ class MainActivity : ComponentActivity() {
                                     }
                                 },
                                 signOutClick = {
-                                    lifecycleScope.launch {
-                                        googleAuthUiClient.signOut()
-                                        Toast.makeText(
-                                            applicationContext,
-                                            "Signed out",
-                                            Toast.LENGTH_SHORT
-                                        ).show()
-                                    }
-                                    //trouble methods, both don't work, if removed app is not crashing
-                                    //navController.navigate("sign_in")
-                                    //navController.popBackStack()
+                                    val builder = AlertDialog.Builder(this@MainActivity)
+                                    builder.setMessage("Вы уверены, что хотите выйти?")
+                                        .setCancelable(false)
+                                        .setPositiveButton("Да") { dialog, id ->
+                                            lifecycleScope.launch {
+                                                googleAuthUiClient.signOut()
+                                                Toast.makeText(
+                                                    applicationContext,
+                                                    "Signed out",
+                                                    Toast.LENGTH_SHORT
+                                                ).show()
+                                                finishAndRemoveTask()
+                                            }
+                                        }
+                                        .setNegativeButton("Нет") { dialog, id ->
+                                            dialog.dismiss()
+                                        }
+                                    val alert = builder.create()
+                                    alert.show()
                                 },
                                 changeGameModeClick = {
                                     if (!userViewModel.getSearchStatus()) {
                                         userViewModel.changeGameMode(it)
                                     }
+                                    Log.d("SELECTEDMODE", userViewModel.getUser().gameMode.toString())
                                 }
                             )
                         }
                         composable("game") {
 
-                            if (!gameViewModel.initDone) gameViewModel.initGame()
+                            //if (!gameViewModel.initDone) gameViewModel.initGame()
 
                             var currentUserId: String by remember { mutableStateOf("") }
                             var whitePlayer: UserQueue? by remember { mutableStateOf(null) }
@@ -202,7 +212,10 @@ class MainActivity : ComponentActivity() {
 
                             if (currentUserId != "" && whitePlayer != null) {
                                 key(whitePlayer) {
-                                    GameScreen(gameViewModel)
+                                    GameScreen(
+                                        gameViewModel,
+                                        navController
+                                    )
                                 }
                             } else {
                                 Column(
@@ -220,7 +233,6 @@ class MainActivity : ComponentActivity() {
                                     )
                                 }
                             }
-
                         }
                     }
                 }

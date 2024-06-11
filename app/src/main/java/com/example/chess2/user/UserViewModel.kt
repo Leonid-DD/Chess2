@@ -11,6 +11,7 @@ import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.Query
+import com.google.firebase.firestore.auth.User
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -70,8 +71,9 @@ class UserViewModel : ViewModel() {
                     val matchingUsers = mutableListOf<UserQueue>()
                     for (document in snapshot.documents) {
                         val userId = document.getString("userId")
-                        if (userId != user.userId) {
-                            val searching = document.getBoolean("searching") ?: false
+                        val gameMode = document.getString("gameMode")
+                        if (userId != user.userId && gameMode == user.gameMode.toString()) {
+                            val searching = false
                             val gameMode =
                                 if
                                     (document.getString("gameMode") == null) null
@@ -83,6 +85,7 @@ class UserViewModel : ViewModel() {
 
                     if (matchingUsers.isNotEmpty()) {
                         val matchedUser = matchingUsers.random()
+                        user.searching = false
                         updateUsersInGame(user, matchedUser)
                         onMatchingResult(listOf(user, matchedUser))
                     }
@@ -122,5 +125,9 @@ class UserViewModel : ViewModel() {
             "Шахматы 2.0" -> GameMode.CHESS2
             else -> null
         }
+    }
+
+    fun getUser(): UserQueue {
+        return user
     }
 }

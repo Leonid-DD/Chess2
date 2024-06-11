@@ -9,6 +9,7 @@ import com.example.chess2.game.classes.ValidMoves
 import com.example.chess2.game.figures.Figure
 import com.example.chess2.game.figures.FigureName
 import com.example.chess2.game.figures.PlayerColor
+import com.example.chess2.user.GameMode
 import com.example.chess2.user.UserQueue
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.DocumentReference
@@ -24,8 +25,6 @@ import kotlinx.coroutines.tasks.await
 
 class GameStateViewModel : ViewModel() {
 
-    //game.gameState -> _gameState.value.state
-
     //Game State
     private val _gameState = MutableStateFlow(GameState())
     val gameState: StateFlow<GameState> = _gameState.asStateFlow()
@@ -35,15 +34,14 @@ class GameStateViewModel : ViewModel() {
     val highlightState: StateFlow<ValidMoves> = _highlightState.asStateFlow()
 
     //Other game properties
-    //Change to User
     private lateinit var wPlayer: UserQueue
     private lateinit var bPlayer: UserQueue
     private lateinit var gameId: String
 
-    private val _whitePlayerTime = MutableStateFlow(600) // Example: 10 minutes in seconds
+    private val _whitePlayerTime = MutableStateFlow(600)
     val whitePlayerTime: StateFlow<Int> = _whitePlayerTime
 
-    private val _blackPlayerTime = MutableStateFlow(600) // Example: 10 minutes in seconds
+    private val _blackPlayerTime = MutableStateFlow(600)
     val blackPlayerTime: StateFlow<Int> = _blackPlayerTime
 
     var initDone: Boolean = false
@@ -58,40 +56,28 @@ class GameStateViewModel : ViewModel() {
 
     private var lastMove: Pair<Pair<Int, Int>, Pair<Int, Int>>? = null
 
-    //Change to User
     fun initPlayers(user1: UserQueue, user2: UserQueue) {
         users = Pair(user1, user2)
         gameId = createGameId(user1, user2)
         Log.d("INIT", "Players initialized")
+        val currentUser = FirebaseAuth.getInstance().uid
+        if (user1.userId.hashCode() < user2.userId.hashCode() && currentUser == user1.userId) {
+            initGame()
+        } else if (user1.userId.hashCode() > user2.userId.hashCode() && currentUser == user2.userId) {
+            initGame()
+        } else {
+            startListeningForGameState()
+            startTimers()
+        }
     }
 
     fun initGame() {
-        val boardState = MutableList(8) { row ->
-            MutableList(8) { col ->
-                when (row) {
-                    0 -> when (col) {
-                        0, 7 -> Figure(row, col, PlayerColor.BLACK, FigureName.ROOK)
-                        1, 6 -> Figure(row, col, PlayerColor.BLACK, FigureName.KNIGHT)
-                        2, 5 -> Figure(row, col, PlayerColor.BLACK, FigureName.BISHOP)
-                        3 -> Figure(row, col, PlayerColor.BLACK, FigureName.QUEEN)
-                        4 -> Figure(row, col, PlayerColor.BLACK, FigureName.KING)
-                        else -> null
-                    }
-                    1 -> Figure(row, col, PlayerColor.BLACK, FigureName.PAWN)
-
-                    6 -> Figure(row, col, PlayerColor.WHITE, FigureName.PAWN)
-                    7 -> when (col) {
-                        0, 7 -> Figure(row, col, PlayerColor.WHITE, FigureName.ROOK)
-                        1, 6 -> Figure(row, col, PlayerColor.WHITE, FigureName.KNIGHT)
-                        2, 5 -> Figure(row, col, PlayerColor.WHITE, FigureName.BISHOP)
-                        3 -> Figure(row, col, PlayerColor.WHITE, FigureName.QUEEN)
-                        4 -> Figure(row, col, PlayerColor.WHITE, FigureName.KING)
-                        else -> null
-                    }
-
-                    else -> null
-                }
-            }
+        val gameMode = users.first.gameMode
+        val boardState = when(gameMode) {
+            GameMode.CLASSIC -> generateClassicModeState()
+            GameMode.RANDOM -> generateRandomModeState()
+            GameMode.CHESS2 -> generateChess2ModeState()
+            else -> mutableListOf()
         }
 
         val user1 = if ((0..1).random() == 0) users.first else users.second
@@ -528,7 +514,11 @@ class GameStateViewModel : ViewModel() {
         return moves
     }
 
-    fun pawnTake(coordinates: Pair<Int, Int>, length: Int, isWhite: Boolean): List<Pair<Int, Int>> {
+    fun pawnTake(
+        coordinates: Pair<Int, Int>,
+        length: Int,
+        isWhite: Boolean
+    ): List<Pair<Int, Int>> {
         val gameState = _gameState.value.state
         val (startRow, startCol) = coordinates
         val moves = mutableListOf<Pair<Int, Int>>()
@@ -979,7 +969,11 @@ class GameStateViewModel : ViewModel() {
         return null
     }
 
-    fun moveRookForCastling(kingCoordinates: Pair<Int, Int>, targetCoordinates: Pair<Int, Int>, gameState: MutableList<MutableList<Figure?>>) {
+    fun moveRookForCastling(
+        kingCoordinates: Pair<Int, Int>,
+        targetCoordinates: Pair<Int, Int>,
+        gameState: MutableList<MutableList<Figure?>>
+    ) {
         val (kingRow, kingCol) = kingCoordinates
         val (targetRow, targetCol) = targetCoordinates
         if (targetCol == kingCol + 2) {
@@ -1012,5 +1006,78 @@ class GameStateViewModel : ViewModel() {
                 }
             }
         }
+    }
+
+    fun set_gameState(gameState: GameState) {
+        _gameState.value = gameState
+    }
+
+    private fun generateClassicModeState(): MutableList<MutableList<Figure?>> {
+        return MutableList(8) { row ->
+            MutableList(8) { col ->
+                when (row) {
+                    0 -> when (col) {
+                        0, 7 -> Figure(row, col, PlayerColor.BLACK, FigureName.ROOK)
+                        1, 6 -> Figure(row, col, PlayerColor.BLACK, FigureName.KNIGHT)
+                        2, 5 -> Figure(row, col, PlayerColor.BLACK, FigureName.BISHOP)
+                        3 -> Figure(row, col, PlayerColor.BLACK, FigureName.QUEEN)
+                        4 -> Figure(row, col, PlayerColor.BLACK, FigureName.KING)
+                        else -> null
+                    }
+                    1 -> Figure(row, col, PlayerColor.BLACK, FigureName.PAWN)
+
+                    6 -> Figure(row, col, PlayerColor.WHITE, FigureName.PAWN)
+                    7 -> when (col) {
+                        0, 7 -> Figure(row, col, PlayerColor.WHITE, FigureName.ROOK)
+                        1, 6 -> Figure(row, col, PlayerColor.WHITE, FigureName.KNIGHT)
+                        2, 5 -> Figure(row, col, PlayerColor.WHITE, FigureName.BISHOP)
+                        3 -> Figure(row, col, PlayerColor.WHITE, FigureName.QUEEN)
+                        4 -> Figure(row, col, PlayerColor.WHITE, FigureName.KING)
+                        else -> null
+                    }
+
+                    else -> null
+                }
+            }
+        }
+    }
+
+    private fun generateRandomModeState(): MutableList<MutableList<Figure?>> {
+        val pawns = listOf( FigureName.PAWN, FigureName.PAWN_ROOK, FigureName.PAWN_BISHOP, FigureName.PAWN_KNIGHT )
+        val rooks = listOf( FigureName.ROOK, FigureName.ROOK_PAWN, FigureName.ROOK_BISHOP, FigureName.ROOK_KNIGHT)
+        val knights = listOf( FigureName.KNIGHT, FigureName.KNIGHT_PAWN, FigureName.KNIGHT_ROOK, FigureName.KNIGHT_BISHOP)
+        val bishops = listOf( FigureName.BISHOP, FigureName.BISHOP_PAWN, FigureName.BISHOP_ROOK, FigureName.BISHOP_KNIGHT)
+
+        return MutableList(8) { row ->
+            MutableList(8) { col ->
+                when (row) {
+                    0 -> when (col) {
+                        0, 7 -> Figure(row, col, PlayerColor.BLACK, rooks.random())
+                        1, 6 -> Figure(row, col, PlayerColor.BLACK, knights.random())
+                        2, 5 -> Figure(row, col, PlayerColor.BLACK, bishops.random())
+                        3 -> Figure(row, col, PlayerColor.BLACK, FigureName.QUEEN)
+                        4 -> Figure(row, col, PlayerColor.BLACK, FigureName.KING)
+                        else -> null
+                    }
+                    1 -> Figure(row, col, PlayerColor.BLACK, pawns.random())
+
+                    6 -> Figure(row, col, PlayerColor.WHITE, pawns.random())
+                    7 -> when (col) {
+                        0, 7 -> Figure(row, col, PlayerColor.WHITE, rooks.random())
+                        1, 6 -> Figure(row, col, PlayerColor.WHITE, knights.random())
+                        2, 5 -> Figure(row, col, PlayerColor.WHITE, bishops.random())
+                        3 -> Figure(row, col, PlayerColor.WHITE, FigureName.QUEEN)
+                        4 -> Figure(row, col, PlayerColor.WHITE, FigureName.KING)
+                        else -> null
+                    }
+
+                    else -> null
+                }
+            }
+        }
+    }
+
+    private fun generateChess2ModeState(): MutableList<MutableList<Figure?>> {
+        return mutableListOf()
     }
 }

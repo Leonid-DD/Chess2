@@ -28,7 +28,11 @@ class GameFBDeserializer {
     private fun parseUserQueue(data: Map<*, *>): UserQueue {
         val userId = data["userId"] as String
         val searching = data["searching"] as Boolean
-        val gameMode = if (data["gameMode"] != null) GameMode.valueOf(data["gameMode"] as String) else null
+        val gameMode =
+            if (data["gameMode"] != null)
+                GameMode.valueOf(data["gameMode"] as String)
+            else
+                null
         return UserQueue(userId, searching, gameMode)
     }
 

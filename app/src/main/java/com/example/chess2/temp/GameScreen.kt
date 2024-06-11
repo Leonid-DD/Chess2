@@ -3,6 +3,7 @@ package com.example.chess2.temp
 import android.annotation.SuppressLint
 import android.content.Context
 import android.util.Log
+import androidx.activity.compose.BackHandler
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
@@ -19,6 +20,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -43,6 +46,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.res.TypedArrayUtils.getResourceId
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavHostController
 import com.example.chess2.R
 import com.example.chess2.auth.google.UserData
 import com.example.chess2.game.GameStateViewModel
@@ -58,7 +62,8 @@ import java.util.Locale
 
 @Composable
 fun GameScreen(
-    gameStateViewModel: GameStateViewModel = viewModel()
+    gameStateViewModel: GameStateViewModel = viewModel(),
+    navController: NavHostController
 ) {
 
     val gameState by gameStateViewModel.gameState.collectAsState()
@@ -74,6 +79,42 @@ fun GameScreen(
 
     val currentUserMoveText = if (isWhitePlayerTurn == isWhitePlayer) "Ваш ход" else ""
     val opponentMoveText = if (isWhitePlayerTurn == isWhitePlayer) "" else "Ход противника"
+
+    var showDialog by remember { mutableStateOf(false) }
+
+    BackHandler {
+        showDialog = true
+    }
+
+    if (showDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showDialog = false
+            },
+            text = {
+                Text("Вы уверены, что хотите выйти? Выход будет засчитан как поражение.")
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showDialog = false
+                        navController.popBackStack() // Or perform any other action to go back
+                    }
+                ) {
+                    Text("Да")
+                }
+            },
+            dismissButton = {
+                Button(
+                    onClick = {
+                        showDialog = false
+                    }
+                ) {
+                    Text("Нет")
+                }
+            }
+        )
+    }
 
     Column(
         modifier = Modifier
@@ -177,7 +218,7 @@ fun ChessSquare(
     }
 
     val squareColor = if (isHighlighted) {
-        Color.Green
+        Color(0xFF89CF89)
     } else if (((position.first ?: 0) + (position.second ?: 0)) % 2 == 0) {
         Color.LightGray
     } else {
