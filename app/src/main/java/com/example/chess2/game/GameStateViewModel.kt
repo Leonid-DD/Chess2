@@ -54,8 +54,6 @@ class GameStateViewModel : ViewModel() {
     private val _whiteMove = MutableStateFlow(true) // Example turn state
     val whiteMove: StateFlow<Boolean> = _whiteMove
 
-    private var lastMove: Pair<Pair<Int, Int>, Pair<Int, Int>>? = null
-
     fun initPlayers(user1: UserQueue, user2: UserQueue) {
         users = Pair(user1, user2)
         gameId = createGameId(user1, user2)
@@ -341,7 +339,6 @@ class GameStateViewModel : ViewModel() {
                 validMoves.addAll(pawnFirstMove(coordinates, 2, isWhite))
                 validMoves.addAll(pawnBaseMove(coordinates, 1, isWhite))
                 validMoves.addAll(pawnTake(coordinates, 1, isWhite))
-                validMoves.addAll(enPassantMoves(coordinates, lastMove, isWhite))
             }
 
             FigureName.BISHOP -> {
@@ -541,43 +538,6 @@ class GameStateViewModel : ViewModel() {
                         moves.add(Pair(newRow, newCol)) // Capture
                     }
                     break
-                }
-            }
-        }
-
-        return moves
-    }
-
-    fun enPassantMoves(
-        coordinates: Pair<Int, Int>,
-        lastMove: Pair<Pair<Int, Int>, Pair<Int, Int>>?,
-        isWhite: Boolean
-    ): List<Pair<Int, Int>> {
-        val gameState = _gameState.value.state
-        val (startRow, startCol) = coordinates
-        val moves = mutableListOf<Pair<Int, Int>>()
-
-        if (lastMove == null) return moves
-
-        val (from, to) = lastMove
-        val direction = if (isWhite) -1 else 1
-        val enPassantRow = if (isWhite) 3 else 4
-
-        if (startRow == enPassantRow) {
-            val potentialEnPassantCols = listOf(startCol - 1, startCol + 1)
-            for (col in potentialEnPassantCols) {
-                if (isValidPosition(
-                        startRow,
-                        col
-                    ) && gameState[startRow][col]?.name == FigureName.PAWN && gameState[startRow][col]?.color != (if (isWhite) PlayerColor.WHITE else PlayerColor.BLACK)
-                ) {
-                    if (to == Pair(enPassantRow, col) && from == Pair(
-                            enPassantRow + direction * 2,
-                            col
-                        )
-                    ) {
-                        moves.add(Pair(startRow + direction, col))
-                    }
                 }
             }
         }
@@ -1078,6 +1038,207 @@ class GameStateViewModel : ViewModel() {
     }
 
     private fun generateChess2ModeState(): MutableList<MutableList<Figure?>> {
-        return mutableListOf()
+
+        val boards = listOf( "PAWNS", "Blitzkrieg", "Conservative", "Defence" )
+
+        val wBoard = when (boards.random()) {
+            "PAWNS" -> chess2_PAWNS(true)
+            "Blitzkrieg" -> chess2_Blitzkrieg(true)
+            "Conservative" -> chess2_Conservative(true)
+            "Defence" -> chess2_Defence(true)
+            else -> mutableListOf()
+        }
+
+        val bBoard = when (boards.random()) {
+            "PAWNS" -> chess2_PAWNS(false)
+            "Blitzkrieg" -> chess2_Blitzkrieg(false)
+            "Conservative" -> chess2_Conservative(false)
+            "Defence" -> chess2_Defence(false)
+            else -> mutableListOf()
+        }
+
+        return MutableList(8) { row ->
+            MutableList(8) { col ->
+                when (row) {
+                    0 -> when (col) {
+                        0, 1, 2, 3, 4, 5, 6, 7 -> bBoard[0][col]
+                        else -> null
+                    }
+                    1 -> bBoard[1][col]
+
+                    6 -> wBoard[1][col]
+                    7 -> when (col) {
+                        0, 1, 2, 3, 4, 5, 6, 7 -> wBoard[0][col]
+                        else -> null
+                    }
+
+                    else -> null
+                }
+            }
+        }
+    }
+
+    private fun chess2_PAWNS(isWhite: Boolean): MutableList<MutableList<Figure?>> {
+        val result = MutableList(2) {
+            MutableList<Figure?>(8) {
+                null
+            }
+        }
+
+        val mainRow = if (isWhite) 7 else 0
+        val pawnRow = if (isWhite) 6 else 1
+
+        val color = if (isWhite) PlayerColor.WHITE else PlayerColor.BLACK
+
+        val mainFigures = listOf(
+            Figure(mainRow, 0, color, FigureName.ROOK_PAWN),
+            Figure(mainRow, 1, color, FigureName.KNIGHT_PAWN),
+            Figure(mainRow, 2, color, FigureName.BISHOP_PAWN),
+            Figure(mainRow, 3, color, FigureName.QUEEN),
+            Figure(mainRow, 4, color, FigureName.KING),
+            Figure(mainRow, 5, color, FigureName.BISHOP_PAWN),
+            Figure(mainRow, 6, color, FigureName.KNIGHT_PAWN),
+            Figure(mainRow, 7, color, FigureName.ROOK_PAWN)
+        )
+        val pawns = listOf(
+            Figure(pawnRow, 0, color, FigureName.PAWN_ROOK),
+            Figure(pawnRow, 1, color, FigureName.PAWN_KNIGHT),
+            Figure(pawnRow, 2, color, FigureName.PAWN_BISHOP),
+            Figure(pawnRow, 3, color, FigureName.PAWN),
+            Figure(pawnRow, 4, color, FigureName.PAWN),
+            Figure(pawnRow, 5, color, FigureName.PAWN_BISHOP),
+            Figure(pawnRow, 6, color, FigureName.PAWN_KNIGHT),
+            Figure(pawnRow, 7, color, FigureName.PAWN_ROOK)
+        )
+
+        for (figure in mainFigures) {
+            result[0][figure.col] = mainFigures[figure.col]
+            result[1][figure.col] = pawns[figure.col]
+        }
+
+        return result
+    }
+
+    private fun chess2_Blitzkrieg(isWhite: Boolean): MutableList<MutableList<Figure?>> {
+        val result = MutableList(2) {
+            MutableList<Figure?>(8) {
+                null
+            }
+        }
+
+        val mainRow = if (isWhite) 7 else 0
+        val pawnRow = if (isWhite) 6 else 1
+
+        val color = if (isWhite) PlayerColor.WHITE else PlayerColor.BLACK
+
+        val mainFigures = listOf(
+            Figure(mainRow, 0, color, FigureName.ROOK),
+            Figure(mainRow, 1, color, FigureName.KNIGHT_BISHOP),
+            Figure(mainRow, 2, color, FigureName.BISHOP),
+            Figure(mainRow, 3, color, FigureName.QUEEN),
+            Figure(mainRow, 4, color, FigureName.KING),
+            Figure(mainRow, 5, color, FigureName.BISHOP),
+            Figure(mainRow, 6, color, FigureName.KNIGHT_BISHOP),
+            Figure(mainRow, 7, color, FigureName.ROOK)
+        )
+        val pawns = listOf(
+            Figure(pawnRow, 0, color, FigureName.PAWN),
+            Figure(pawnRow, 1, color, FigureName.PAWN_BISHOP),
+            Figure(pawnRow, 2, color, FigureName.PAWN_BISHOP),
+            Figure(pawnRow, 3, color, FigureName.PAWN_ROOK),
+            Figure(pawnRow, 4, color, FigureName.PAWN_ROOK),
+            Figure(pawnRow, 5, color, FigureName.PAWN_BISHOP),
+            Figure(pawnRow, 6, color, FigureName.PAWN_BISHOP),
+            Figure(pawnRow, 7, color, FigureName.PAWN)
+        )
+
+        for (figure in mainFigures) {
+            result[0][figure.col] = mainFigures[figure.col]
+            result[1][figure.col] = pawns[figure.col]
+        }
+
+        return result
+    }
+
+    private fun chess2_Conservative(isWhite: Boolean): MutableList<MutableList<Figure?>> {
+        val result = MutableList(2) {
+            MutableList<Figure?>(8) {
+                null
+            }
+        }
+
+        val mainRow = if (isWhite) 7 else 0
+        val pawnRow = if (isWhite) 6 else 1
+
+        val color = if (isWhite) PlayerColor.WHITE else PlayerColor.BLACK
+
+        val mainFigures = listOf(
+            Figure(mainRow, 0, color, FigureName.ROOK_BISHOP),
+            Figure(mainRow, 1, color, FigureName.KNIGHT),
+            Figure(mainRow, 2, color, FigureName.BISHOP_ROOK),
+            Figure(mainRow, 3, color, FigureName.QUEEN),
+            Figure(mainRow, 4, color, FigureName.KING),
+            Figure(mainRow, 5, color, FigureName.BISHOP_ROOK),
+            Figure(mainRow, 6, color, FigureName.KNIGHT),
+            Figure(mainRow, 7, color, FigureName.ROOK_BISHOP)
+        )
+        val pawns = listOf(
+            Figure(pawnRow, 0, color, FigureName.PAWN),
+            Figure(pawnRow, 1, color, FigureName.PAWN),
+            Figure(pawnRow, 2, color, FigureName.PAWN_ROOK),
+            Figure(pawnRow, 3, color, FigureName.PAWN_ROOK),
+            Figure(pawnRow, 4, color, FigureName.PAWN_ROOK),
+            Figure(pawnRow, 5, color, FigureName.PAWN_ROOK),
+            Figure(pawnRow, 6, color, FigureName.PAWN),
+            Figure(pawnRow, 7, color, FigureName.PAWN)
+        )
+
+        for (figure in mainFigures) {
+            result[0][figure.col] = mainFigures[figure.col]
+            result[1][figure.col] = pawns[figure.col]
+        }
+
+        return result
+    }
+
+    private fun chess2_Defence(isWhite: Boolean): MutableList<MutableList<Figure?>> {
+        val result = MutableList(2) {
+            MutableList<Figure?>(8) {
+                null
+            }
+        }
+
+        val mainRow = if (isWhite) 7 else 0
+        val pawnRow = if (isWhite) 6 else 1
+
+        val color = if (isWhite) PlayerColor.WHITE else PlayerColor.BLACK
+
+        val mainFigures = listOf(
+            Figure(mainRow, 0, color, FigureName.ROOK_KNIGHT),
+            Figure(mainRow, 1, color, FigureName.KNIGHT_ROOK),
+            Figure(mainRow, 2, color, FigureName.BISHOP_KNIGHT),
+            Figure(mainRow, 3, color, FigureName.QUEEN),
+            Figure(mainRow, 4, color, FigureName.KING),
+            Figure(mainRow, 5, color, FigureName.BISHOP_KNIGHT),
+            Figure(mainRow, 6, color, FigureName.KNIGHT_ROOK),
+            Figure(mainRow, 7, color, FigureName.ROOK_KNIGHT)
+        )
+        val pawns = listOf(
+            Figure(pawnRow, 0, color, FigureName.PAWN_BISHOP),
+            Figure(pawnRow, 1, color, FigureName.PAWN),
+            Figure(pawnRow, 2, color, FigureName.PAWN),
+            Figure(pawnRow, 3, color, FigureName.PAWN_KNIGHT),
+            Figure(pawnRow, 4, color, FigureName.PAWN_KNIGHT),
+            Figure(pawnRow, 5, color, FigureName.PAWN),
+            Figure(pawnRow, 6, color, FigureName.PAWN),
+            Figure(pawnRow, 7, color, FigureName.PAWN_BISHOP)
+        )
+
+        for (figure in mainFigures) {
+            result[0][figure.col] = mainFigures[figure.col]
+            result[1][figure.col] = pawns[figure.col]
+        }
+
+        return result
     }
 }
