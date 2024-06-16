@@ -498,7 +498,7 @@ class GameStateViewModel : ViewModel() {
 
         // Standard forward move
         for (i in 1..length) {
-            val oneStepForward = Pair(startRow + length * direction, startCol)
+            val oneStepForward = Pair(startRow + i * direction, startCol)
             if (isValidPosition(
                     oneStepForward.first,
                     oneStepForward.second
