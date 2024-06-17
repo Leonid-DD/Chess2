@@ -47,10 +47,10 @@ class GameStateViewModel(
     private lateinit var gameId: String
 
     private val _whitePlayerTime = MutableStateFlow(600)
-    val whitePlayerTime: StateFlow<Int> = _whitePlayerTime
+    val whitePlayerTime: StateFlow<Int> = _whitePlayerTime.asStateFlow()
 
     private val _blackPlayerTime = MutableStateFlow(600)
-    val blackPlayerTime: StateFlow<Int> = _blackPlayerTime
+    val blackPlayerTime: StateFlow<Int> = _blackPlayerTime.asStateFlow()
 
     var initDone: Boolean = false
     val db = FirebaseFirestore.getInstance()
@@ -60,22 +60,56 @@ class GameStateViewModel(
     private var selectedPiecePosition: Pair<Int, Int>? = null
 
     private val _whiteMove = MutableStateFlow(true) // Example turn state
-    val whiteMove: StateFlow<Boolean> = _whiteMove
+    val whiteMove: StateFlow<Boolean> = _whiteMove.asStateFlow()
 
-    private val _gameEnded = MutableStateFlow(false) // Example turn state
-    val gameEnded: StateFlow<Boolean> = _gameEnded
+    private val _gameEnded = MutableStateFlow(false)
+    val gameEnded: StateFlow<Boolean> = _gameEnded.asStateFlow()
+
+    private val _message = MutableStateFlow("")
+    val  message: StateFlow<String> = _message.asStateFlow()
 
     fun initPlayers(user1: UserQueue, user2: UserQueue) {
         users = Pair(user1, user2)
         gameId = createGameId(user1, user2)
-        Log.d("INIT", "Players initialized")
         val currentUser = FirebaseAuth.getInstance().uid
         if (user1.userId.hashCode() < user2.userId.hashCode() && currentUser == user1.userId) {
             initGame()
         } else if (user1.userId.hashCode() > user2.userId.hashCode() && currentUser == user2.userId) {
             initGame()
         } else {
-            startListeningForGameState()
+            val docRef = db.collection("games").document(gameId)
+            gameStateListener = docRef.addSnapshotListener { snapshot, exception ->
+                if (exception != null) {
+                    println("Error fetching game state: $exception")
+                    return@addSnapshotListener
+                }
+
+                if (snapshot != null && snapshot.exists()) {
+                    // Document exists, update game state
+                    val deserializer = GameFBDeserializer()
+                    val updatedGameState = deserializer.deserialize(snapshot).gameState
+                    if (_gameState.value != GameState(
+                            convertFromFB(
+                                updatedGameState
+                            )
+                        )
+                    ) {
+                        // Update local game state
+                        _gameState.value = GameState(convertFromFB(updatedGameState))
+
+                        try {
+                            wPlayer = deserializer.deserialize(snapshot).wPlayer!!
+                            bPlayer = deserializer.deserialize(snapshot).bPlayer!!
+                        } catch (e: Exception) {
+                            Log.d("ERROR", "Users not found")
+                        }
+
+                        Log.d("INIT", "Game initialized")
+                    }
+                } else {
+                    println("Current data: null")
+                }
+            }
             startTimers()
         }
     }
@@ -235,8 +269,6 @@ class GameStateViewModel(
     }
 
     private fun updateGameStateInFirestore() {
-        // Update the gameState in Firestore with the new state
-        // You can access the Firestore database instance here and update the document accordingly
         db.collection("games").document(gameId)
             .update("gameState", convertToFB(_gameState.value.state))
     }
@@ -272,7 +304,7 @@ class GameStateViewModel(
 
     fun addGameStateListener() {
         val docRef = db.collection("games").document(gameId)
-        docRef.addSnapshotListener { snapshot, exception ->
+        gameStateListener = docRef.addSnapshotListener { snapshot, exception ->
             if (exception != null) {
                 println("Error fetching game state: $exception")
                 return@addSnapshotListener
@@ -297,6 +329,7 @@ class GameStateViewModel(
                         endGame(PlayerColor.BLACK)
 
                     changePlayer()
+                    Log.d("U_ISPLAYERTURN", isPlayerTurn().toString())
                 }
             } else {
                 println("Current data: null")
@@ -761,10 +794,6 @@ class GameStateViewModel(
         }
     }
 
-    fun set_gameState(gameState: GameState) {
-        _gameState.value = gameState
-    }
-
     private fun generateClassicModeState(): MutableList<MutableList<Figure?>> {
         return MutableList(8) { row ->
             MutableList(8) { col ->
@@ -1069,12 +1098,12 @@ class GameStateViewModel(
         return kingPosition != null
     }
 
-    fun endGame(losingColor: PlayerColor): String {
+    fun endGame(losingColor: PlayerColor) {
         val currentPlayerColor =
             if (FirebaseAuth.getInstance().uid == getWhitePlayer().userId) PlayerColor.WHITE else PlayerColor.BLACK
         _gameEnded.value = true
         gameDetails().delete()
-        return if (currentPlayerColor == losingColor) {
+        val message = if (currentPlayerColor == losingColor) {
             "К сожалению вы проиграли."
         } else {
             "Поздравляем, вы победили!"

@@ -59,7 +59,6 @@ import com.google.firebase.auth.FirebaseAuth
 import java.text.FieldPosition
 import java.util.Locale
 
-
 @Composable
 fun GameScreen(
     gameStateViewModel: GameStateViewModel = viewModel(),
@@ -74,6 +73,7 @@ fun GameScreen(
     val isWhitePlayerTurn by gameStateViewModel.whiteMove.collectAsState()
 
     val gameEnd by gameStateViewModel.gameEnded.collectAsState()
+    val message by gameStateViewModel.message.collectAsState()
 
     val currentUserId = FirebaseAuth.getInstance().uid
     val whitePlayer = remember { gameStateViewModel.getWhitePlayer() }
@@ -83,8 +83,6 @@ fun GameScreen(
     val opponentMoveText = if (isWhitePlayerTurn == isWhitePlayer) "" else "Ход противника"
 
     var showDialog by remember { mutableStateOf(false) }
-
-    var message by remember { mutableStateOf("") }
 
     BackHandler {
         showDialog = true
@@ -103,7 +101,7 @@ fun GameScreen(
                     onClick = {
                         showDialog = false
                         val playerColor = if (isWhitePlayer) PlayerColor.WHITE else PlayerColor.BLACK
-                        message = gameStateViewModel.endGame(playerColor)
+                        gameStateViewModel.endGame(playerColor)
                     }
                 ) {
                     Text("Да")
@@ -130,7 +128,7 @@ fun GameScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        navController.popBackStack() // Or perform any other action to go back
+                        navController.popBackStack(route = "search_game", inclusive = false) // Or perform any other action to go back
                     }
                 ) {
                     Text("Вернуться к поиску игр.")
