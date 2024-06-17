@@ -1,6 +1,7 @@
 package com.example.chess2.game
 
 import android.util.Log
+import androidx.compose.runtime.toMutableStateList
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.chess2.game.classes.GameFB
@@ -22,7 +23,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
-
 class GameStateViewModel : ViewModel() {
 
     //Game State
@@ -33,16 +33,25 @@ class GameStateViewModel : ViewModel() {
     private val _highlightState = MutableStateFlow(ValidMoves())
     val highlightState: StateFlow<ValidMoves> = _highlightState.asStateFlow()
 
+    private val _whitePlayerTime = MutableStateFlow(600)
+    val whitePlayerTime: StateFlow<Int> = _whitePlayerTime.asStateFlow()
+
+    private val _blackPlayerTime = MutableStateFlow(600)
+    val blackPlayerTime: StateFlow<Int> = _blackPlayerTime.asStateFlow()
+
+    private val _whiteMove = MutableStateFlow(true) // Example turn state
+    val whiteMove: StateFlow<Boolean> = _whiteMove.asStateFlow()
+
+    private val _attackedByWhite = MutableStateFlow(ValidMoves())
+    val attackedByWhite: StateFlow<ValidMoves> = _attackedByWhite.asStateFlow()
+
+    private val _attackedByBlack = MutableStateFlow(ValidMoves())
+    val attackedByBlack: StateFlow<ValidMoves> = _attackedByBlack.asStateFlow()
+
     //Other game properties
     private lateinit var wPlayer: UserQueue
     private lateinit var bPlayer: UserQueue
     private lateinit var gameId: String
-
-    private val _whitePlayerTime = MutableStateFlow(600)
-    val whitePlayerTime: StateFlow<Int> = _whitePlayerTime
-
-    private val _blackPlayerTime = MutableStateFlow(600)
-    val blackPlayerTime: StateFlow<Int> = _blackPlayerTime
 
     var initDone: Boolean = false
     val db = FirebaseFirestore.getInstance()
@@ -51,8 +60,8 @@ class GameStateViewModel : ViewModel() {
 
     private var selectedPiecePosition: Pair<Int, Int>? = null
 
-    private val _whiteMove = MutableStateFlow(true) // Example turn state
-    val whiteMove: StateFlow<Boolean> = _whiteMove
+    private var whiteKing: Pair<Int, Int> = Pair(7, 4)
+    private var blackKing: Pair<Int, Int> = Pair(0, 4)
 
     fun initPlayers(user1: UserQueue, user2: UserQueue) {
         users = Pair(user1, user2)
@@ -71,7 +80,7 @@ class GameStateViewModel : ViewModel() {
 
     fun initGame() {
         val gameMode = users.first.gameMode
-        val boardState = when(gameMode) {
+        val boardState = when (gameMode) {
             GameMode.CLASSIC -> generateClassicModeState()
             GameMode.RANDOM -> generateRandomModeState()
             GameMode.CHESS2 -> generateChess2ModeState()
@@ -128,12 +137,12 @@ class GameStateViewModel : ViewModel() {
         if (selectedPiecePosition != null) {
             if (figure != null && figure.color == if (FirebaseAuth.getInstance().uid == wPlayer.userId) PlayerColor.WHITE else PlayerColor.BLACK) {
                 selectedPiecePosition = Pair(figure.row, figure.col)
-                val validMoves = calculateValidMoves(null)
+                val validMoves = calculateValidMoves(figure)
                 _highlightState.value = ValidMoves(validMoves)
             } else moveChessPiece(row, col)
         } else if (figure != null && figure.color == if (FirebaseAuth.getInstance().uid == wPlayer.userId) PlayerColor.WHITE else PlayerColor.BLACK) {
             selectedPiecePosition = Pair(figure.row, figure.col)
-            val validMoves = calculateValidMoves(null)
+            val validMoves = calculateValidMoves(figure)
             _highlightState.value = ValidMoves(validMoves)
         }
     }
@@ -143,13 +152,13 @@ class GameStateViewModel : ViewModel() {
         if (selectedPiece != null) {
             val (fromRow, fromCol) = selectedPiece
             val pieceToMove = _gameState.value.state[fromRow][fromCol]
-            Log.d("PIECETOMOVE", pieceToMove.toString())
-            Log.d("FROMCOORDINATE", fromRow.toString() + " / " + fromCol.toString())
-            Log.d("TOCOORDINATE", toRow.toString() + " / " + toCol.toString())
-            Log.d("VALIDMOVES", highlightState.value.state.toString())
 
             // Check if the move is valid
             if (isValidMove(fromRow, fromCol, toRow, toCol)) {
+                if (pieceToMove!!.name == FigureName.KING) {
+                    if (pieceToMove.color == PlayerColor.WHITE) whiteKing = Pair(toRow, toCol)
+                    else blackKing = Pair(toRow, toCol)
+                }
                 // Update local gameState
                 updateGameState(fromRow, fromCol, toRow, toCol)
                 //Clear highlight
@@ -160,10 +169,10 @@ class GameStateViewModel : ViewModel() {
                 changePlayer()
                 // Update the Firestore database
                 updateGameStateInFirestore()
+                // Check for checkmate or stalemate
+                checkForCheckmateOrStalemate()
                 // Start or restart listening for game state updates
                 startListeningForGameState()
-
-                Log.d("M_ISPLAYERTURN", isPlayerTurn().toString())
             } else {
                 Log.d("INVALIDTURN", "Piece was not moved")
             }
@@ -207,9 +216,8 @@ class GameStateViewModel : ViewModel() {
 
         _gameState.value = GameState(currentState) // Set the new state
 
-        Log.d("ENDSQUARE", _gameState.value.state[toRow][toCol].toString())
-        Log.d("STARTSQUARE", _gameState.value.state[fromRow][fromCol].toString())
-        Log.d("RESULTSTATE", _gameState.value.state.toString())
+        _attackedByWhite.value = ValidMoves(calculateAttackedSquares(true).toMutableList())
+        _attackedByBlack.value = ValidMoves(calculateAttackedSquares(false).toMutableList())
     }
 
     private fun updateGameStateInFirestore() {
@@ -260,7 +268,7 @@ class GameStateViewModel : ViewModel() {
                 // Document exists, update game state
                 val deserializer = GameFBDeserializer()
                 val updatedGameState = deserializer.deserialize(snapshot).gameState
-                if (updatedGameState != null && _gameState.value != GameState(
+                if (_gameState.value != GameState(
                         convertFromFB(
                             updatedGameState
                         )
@@ -268,6 +276,12 @@ class GameStateViewModel : ViewModel() {
                 ) {
                     // Update local game state
                     _gameState.value = GameState(convertFromFB(updatedGameState))
+                    if (_gameState.value.state != emptyList<Figure?>()) {
+                        _attackedByWhite.value =
+                            ValidMoves(calculateAttackedSquares(true).toMutableList())
+                        _attackedByBlack.value =
+                            ValidMoves(calculateAttackedSquares(false).toMutableList())
+                    }
                     changePlayer()
                 }
             } else {
@@ -319,22 +333,32 @@ class GameStateViewModel : ViewModel() {
         }
     }
 
-    fun calculateValidMoves(figureCoordinates: Pair<Int, Int>?): MutableList<Pair<Int, Int>> {
-
-        var selectedPiece: Figure? = null
-        if (figureCoordinates != null)
-            selectedPiece =
-                gameState.value.state[figureCoordinates!!.first][figureCoordinates!!.second]
-        else
-            selectedPiece =
-                gameState.value.state[selectedPiecePosition!!.first][selectedPiecePosition!!.second]
-
-        val coordinates: Pair<Int, Int> = Pair(selectedPiece?.row!!, selectedPiece?.col!!)
-        val isWhite = selectedPiece?.color == PlayerColor.WHITE
+    private fun calculateValidMoves(figure: Figure): MutableList<Pair<Int, Int>> {
+        val stateCopy = _gameState.value.state
         val validMoves = mutableListOf<Pair<Int, Int>>()
-        validMoves.add(selectedPiecePosition!!)
+        figure.let { (row, col) ->
+            stateCopy[row][col]?.let { figure ->
+                // Get all potential moves of the selected piece
+                validMoves.addAll(potentialMoves(figure))
+                // Filter out invalid moves that would leave the king in check
+                val filteredMoves = validMoves.filter { move ->
+                    val (toRow, toCol) = move
+                    !moveLeavesKingInCheck(row, col, toRow, toCol, figure.color)
+                }
+                return filteredMoves.toMutableList()
+            }
+        }
+        return validMoves
+    }
 
-        when (selectedPiece?.name) {
+    private fun potentialMoves(figure: Figure): MutableList<Pair<Int, Int>> {
+
+        val coordinates: Pair<Int, Int> = Pair(figure.row, figure.col)
+        val isWhite = figure.color == PlayerColor.WHITE
+        val validMoves = mutableListOf<Pair<Int, Int>>()
+        validMoves.add(coordinates)
+
+        when (figure.name) {
             FigureName.PAWN -> {
                 validMoves.addAll(pawnFirstMove(coordinates, 2, isWhite))
                 validMoves.addAll(pawnBaseMove(coordinates, 1, isWhite))
@@ -357,8 +381,13 @@ class GameStateViewModel : ViewModel() {
             }
 
             FigureName.KING -> {
-                validMoves.addAll(straightLineMove(coordinates, 1))
-                validMoves.addAll(diagonalLineMove(coordinates, 1))
+                val attackedSquares =
+                    if (figure.color == PlayerColor.WHITE) attackedByBlack.value.state else attackedByWhite.value.state
+                val allMoves = straightLineMove(coordinates, 1)
+                    .plus(diagonalLineMove(coordinates, 1))
+                for (move in allMoves) {
+                    if (!attackedSquares.contains(move)) validMoves.add(move)
+                }
                 //validMoves.addAll(castlingMoves(isWhite))
             }
 
@@ -447,9 +476,7 @@ class GameStateViewModel : ViewModel() {
 
             else -> {}
         }
-
         return validMoves
-
     }
 
     fun pawnFirstMove(
@@ -505,7 +532,7 @@ class GameStateViewModel : ViewModel() {
                 ) && gameState[oneStepForward.first][oneStepForward.second] == null
             ) {
                 moves.add(oneStepForward)
-            }
+            } else break
         }
 
         return moves
@@ -865,43 +892,49 @@ class GameStateViewModel : ViewModel() {
         return row in 0..7 && col in 0..7
     }
 
-    fun isMoveSafe(start: Pair<Int, Int>, end: Pair<Int, Int>): Boolean {
-        val gameState = _gameState.value.state
-        // Create a deep copy of the game state
-        val tempGameState = gameState.map { it.toMutableList() }.toMutableList()
+    private fun moveLeavesKingInCheck(
+        fromRow: Int,
+        fromCol: Int,
+        toRow: Int,
+        toCol: Int,
+        color: PlayerColor
+    ): Boolean {
+        val stateCopy = _gameState.value.state.map { it.toMutableList() }
+        val pieceToMove = stateCopy[fromRow][fromCol]
+        stateCopy[toRow][toCol] = pieceToMove
+        stateCopy[fromRow][fromCol] = null
 
-        // Simulate the move
-        val piece = tempGameState[start.first][start.second]
-        tempGameState[start.first][start.second] = null
-        tempGameState[end.first][end.second] = piece
+        // Update piece position in the copy
+        pieceToMove?.row = toRow
+        pieceToMove?.col = toCol
 
-        // Find the king's position
-        val kingPosition = tempGameState.flatten()
-            .firstOrNull { it?.name == FigureName.KING && it?.color == piece?.color }
-            ?.let { Pair(it.row, it.col) }
+        val kingPosition = if (color == PlayerColor.WHITE) whiteKing else blackKing
+        val kingRow = kingPosition.first
+        val kingCol = kingPosition.second
 
-        return kingPosition != null && !isSquareAttacked(
-            kingPosition,
-            tempGameState,
-            piece?.color == PlayerColor.WHITE
-        )
+        if (pieceToMove!!.name == FigureName.KING) {
+            // If moving a king, check the new position
+            return isKingInCheck(toRow, toCol, color, stateCopy)
+        }
+
+        return isKingInCheck(kingRow, kingCol, color, stateCopy)
     }
 
-    fun isSquareAttacked(
-        square: Pair<Int, Int>,
-        gameState: List<List<Figure?>>,
-        isWhite: Boolean
+    private fun isKingInCheck(
+        kingRow: Int,
+        kingCol: Int,
+        color: PlayerColor,
+        state: List<MutableList<Figure?>>
     ): Boolean {
-
-        val (targetRow, targetCol) = square
-        val opponentColor = if (isWhite) PlayerColor.BLACK else PlayerColor.WHITE
-
-        for (row in gameState.indices) {
-            for (col in gameState[row].indices) {
-                val piece = gameState[row][col]
-                if (piece != null && piece.color == opponentColor) {
-                    val possibleMoves = calculateValidMoves(Pair(row, col))
-                    if (possibleMoves.contains(square)) {
+        var opponentFigures = 0
+        val opponentColor = if (color == PlayerColor.WHITE) PlayerColor.BLACK else PlayerColor.WHITE
+        for (row in state.indices) {
+            for (col in state[row].indices) {
+                if (opponentFigures == 16) return false
+                val figure = state[row][col]
+                if (figure != null && figure.color == opponentColor) {
+                    opponentFigures++
+                    if (potentialMoves(figure).contains(Pair(kingRow, kingCol))) {
                         return true
                     }
                 }
@@ -910,43 +943,86 @@ class GameStateViewModel : ViewModel() {
         return false
     }
 
-    // Check if the king is in check in the given game state
-    fun isKingInCheck(gameState: List<List<Figure?>>, isWhite: Boolean): Boolean {
-        val kingPosition = findKingPosition(gameState, isWhite) ?: return true
-        return isSquareAttacked(kingPosition, gameState, isWhite)
+    private fun checkForCheckmateOrStalemate() {
+        val color = if (_whiteMove.value) PlayerColor.WHITE else PlayerColor.BLACK
+        val kingPosition = if (color == PlayerColor.WHITE) whiteKing else blackKing
+        if (isKingInCheck(kingPosition.first, kingPosition.second, color, _gameState.value.state)) {
+            if (isCheckmate(color)) {
+                Log.d("CHECKMATE", "Checkmate! ${color.name} loses.")
+                // Handle checkmate: end game, display message, etc.
+                endGame()
+            }
+        }
     }
 
-    // Find the position of the king
-    fun findKingPosition(gameState: List<List<Figure?>>, isWhite: Boolean): Pair<Int, Int>? {
-        for (row in gameState.indices) {
-            for (col in gameState[row].indices) {
-                val piece = gameState[row][col]
-                if (piece != null && piece.name == FigureName.KING && piece.color == if (isWhite) PlayerColor.WHITE else PlayerColor.BLACK) {
-                    return Pair(row, col)
+    private fun isCheckmate(color: PlayerColor): Boolean {
+        for (row in _gameState.value.state.indices) {
+            for (col in _gameState.value.state[row].indices) {
+                val piece = _gameState.value.state[row][col]
+                if (piece != null && piece.color == color) {
+                    val validMoves = calculateValidMoves(piece)
+                    if (validMoves.isNotEmpty()) {
+                        return false
+                    }
                 }
             }
         }
-        return null
+        return true
     }
 
-    fun moveRookForCastling(
-        kingCoordinates: Pair<Int, Int>,
-        targetCoordinates: Pair<Int, Int>,
-        gameState: MutableList<MutableList<Figure?>>
-    ) {
-        val (kingRow, kingCol) = kingCoordinates
-        val (targetRow, targetCol) = targetCoordinates
-        if (targetCol == kingCol + 2) {
-            // King side castling
-            val rook = gameState[kingRow][kingCol + 3]
-            gameState[kingRow][kingCol + 3] = null
-            gameState[kingRow][kingCol + 1] = rook
-        } else if (targetCol == kingCol - 2) {
-            // Queen side castling
-            val rook = gameState[kingRow][kingCol - 4]
-            gameState[kingRow][kingCol - 4] = null
-            gameState[kingRow][kingCol - 1] = rook
+    private fun endGame() {
+        // Implement game end logic, e.g., show result, update database, etc.
+    }
+
+    private fun calculateAttackedSquares(isWhite: Boolean): List<Pair<Int, Int>> {
+        val gameState = _gameState.value.state
+        val sortedState = convertToFB(gameState)
+        val attackedSquares = mutableListOf<Pair<Int, Int>>()
+        val pawnFigures = listOf(
+            FigureName.PAWN,
+            FigureName.PAWN_ROOK,
+            FigureName.PAWN_BISHOP,
+            FigureName.PAWN_KNIGHT,
+            FigureName.BISHOP_PAWN,
+            FigureName.KNIGHT_PAWN
+        )
+
+        val color = if (isWhite) PlayerColor.WHITE else PlayerColor.BLACK
+
+        sortedState.removeAll { it.color != color }
+
+        for (figure in sortedState) {
+            var squares: List<Pair<Int, Int>>
+            if (!pawnFigures.contains(figure.name)) {
+                squares = calculateValidMoves(figure)
+            } else {
+                squares = when (figure.name) {
+                    FigureName.PAWN, FigureName.PAWN_ROOK -> pawnTake(
+                        Pair(figure.row, figure.col),
+                        1,
+                        isWhite
+                    )
+
+                    FigureName.PAWN_BISHOP -> pawnTake(Pair(figure.row, figure.col), 2, isWhite)
+                    FigureName.PAWN_KNIGHT -> pawnTake(Pair(figure.row, figure.col), 1, isWhite)
+                        .plus(knightFront(Pair(figure.row, figure.col), isWhite, true))
+
+                    FigureName.BISHOP_PAWN -> diagonalLineMove(Pair(figure.row, figure.col), 3)
+                    FigureName.KNIGHT_PAWN -> pawnTake(Pair(figure.row, figure.col), 1, isWhite)
+                        .plus(knightFront(Pair(figure.row, figure.col), isWhite, true))
+                        .plus(knightUpMid(Pair(figure.row, figure.col), isWhite, true))
+                        .plus(knightDownMid(Pair(figure.row, figure.col), isWhite))
+                        .plus(knightBack(Pair(figure.row, figure.col), isWhite))
+
+                    else -> emptyList()
+                }
+            }
+            attackedSquares.addAll(squares)
         }
+
+        attackedSquares.distinct()
+
+        return attackedSquares
     }
 
     private fun startTimers() {
@@ -968,10 +1044,6 @@ class GameStateViewModel : ViewModel() {
         }
     }
 
-    fun set_gameState(gameState: GameState) {
-        _gameState.value = gameState
-    }
-
     private fun generateClassicModeState(): MutableList<MutableList<Figure?>> {
         return MutableList(8) { row ->
             MutableList(8) { col ->
@@ -984,6 +1056,7 @@ class GameStateViewModel : ViewModel() {
                         4 -> Figure(row, col, PlayerColor.BLACK, FigureName.KING)
                         else -> null
                     }
+
                     1 -> Figure(row, col, PlayerColor.BLACK, FigureName.PAWN)
 
                     6 -> Figure(row, col, PlayerColor.WHITE, FigureName.PAWN)
@@ -1003,10 +1076,30 @@ class GameStateViewModel : ViewModel() {
     }
 
     private fun generateRandomModeState(): MutableList<MutableList<Figure?>> {
-        val pawns = listOf( FigureName.PAWN, FigureName.PAWN_ROOK, FigureName.PAWN_BISHOP, FigureName.PAWN_KNIGHT )
-        val rooks = listOf( FigureName.ROOK, FigureName.ROOK_PAWN, FigureName.ROOK_BISHOP, FigureName.ROOK_KNIGHT)
-        val knights = listOf( FigureName.KNIGHT, FigureName.KNIGHT_PAWN, FigureName.KNIGHT_ROOK, FigureName.KNIGHT_BISHOP)
-        val bishops = listOf( FigureName.BISHOP, FigureName.BISHOP_PAWN, FigureName.BISHOP_ROOK, FigureName.BISHOP_KNIGHT)
+        val pawns = listOf(
+            FigureName.PAWN,
+            FigureName.PAWN_ROOK,
+            FigureName.PAWN_BISHOP,
+            FigureName.PAWN_KNIGHT
+        )
+        val rooks = listOf(
+            FigureName.ROOK,
+            FigureName.ROOK_PAWN,
+            FigureName.ROOK_BISHOP,
+            FigureName.ROOK_KNIGHT
+        )
+        val knights = listOf(
+            FigureName.KNIGHT,
+            FigureName.KNIGHT_PAWN,
+            FigureName.KNIGHT_ROOK,
+            FigureName.KNIGHT_BISHOP
+        )
+        val bishops = listOf(
+            FigureName.BISHOP,
+            FigureName.BISHOP_PAWN,
+            FigureName.BISHOP_ROOK,
+            FigureName.BISHOP_KNIGHT
+        )
 
         return MutableList(8) { row ->
             MutableList(8) { col ->
@@ -1019,6 +1112,7 @@ class GameStateViewModel : ViewModel() {
                         4 -> Figure(row, col, PlayerColor.BLACK, FigureName.KING)
                         else -> null
                     }
+
                     1 -> Figure(row, col, PlayerColor.BLACK, pawns.random())
 
                     6 -> Figure(row, col, PlayerColor.WHITE, pawns.random())
@@ -1039,7 +1133,7 @@ class GameStateViewModel : ViewModel() {
 
     private fun generateChess2ModeState(): MutableList<MutableList<Figure?>> {
 
-        val boards = listOf( "PAWNS", "Blitzkrieg", "Conservative", "Defence" )
+        val boards = listOf("PAWNS", "Blitzkrieg", "Conservative", "Defence")
 
         val wBoard = when (boards.random()) {
             "PAWNS" -> chess2_PAWNS(true)
@@ -1064,6 +1158,7 @@ class GameStateViewModel : ViewModel() {
                         0, 1, 2, 3, 4, 5, 6, 7 -> bBoard[0][col]
                         else -> null
                     }
+
                     1 -> bBoard[1][col]
 
                     6 -> wBoard[1][col]

@@ -48,7 +48,7 @@ class UserViewModel : ViewModel() {
 
     fun stopSearching() {
         user.searching = false
-        userDetails().set(user)
+        userDetails().delete()
         searchListener?.remove()
     }
 
