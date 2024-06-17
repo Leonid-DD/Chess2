@@ -73,6 +73,8 @@ fun GameScreen(
     val blackPlayerTime by gameStateViewModel.blackPlayerTime.collectAsState()
     val isWhitePlayerTurn by gameStateViewModel.whiteMove.collectAsState()
 
+    val gameEnd by gameStateViewModel.gameEnded.collectAsState()
+
     val currentUserId = FirebaseAuth.getInstance().uid
     val whitePlayer = remember { gameStateViewModel.getWhitePlayer() }
     val isWhitePlayer = currentUserId == whitePlayer.userId
@@ -81,6 +83,8 @@ fun GameScreen(
     val opponentMoveText = if (isWhitePlayerTurn == isWhitePlayer) "" else "Ход противника"
 
     var showDialog by remember { mutableStateOf(false) }
+
+    var message by remember { mutableStateOf("") }
 
     BackHandler {
         showDialog = true
@@ -98,7 +102,8 @@ fun GameScreen(
                 Button(
                     onClick = {
                         showDialog = false
-                        navController.popBackStack() // Or perform any other action to go back
+                        val playerColor = if (isWhitePlayer) PlayerColor.WHITE else PlayerColor.BLACK
+                        message = gameStateViewModel.endGame(playerColor)
                     }
                 ) {
                     Text("Да")
@@ -111,6 +116,24 @@ fun GameScreen(
                     }
                 ) {
                     Text("Нет")
+                }
+            }
+        )
+    }
+
+    if (gameEnd) {
+        AlertDialog(
+            onDismissRequest = { },
+            text = {
+                Text(message)
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        navController.popBackStack() // Or perform any other action to go back
+                    }
+                ) {
+                    Text("Вернуться к поиску игр.")
                 }
             }
         )

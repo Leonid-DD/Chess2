@@ -65,7 +65,7 @@ class MainActivity : ComponentActivity() {
 
     val signInViewModel = SignInViewModel()
     val userViewModel = UserViewModel()
-    val gameViewModel = GameStateViewModel()
+    val gameViewModel = GameStateViewModel(this)
 
     @SuppressLint("CoroutineCreationDuringComposition")
     override fun onCreate(savedInstanceState: Bundle?) {
