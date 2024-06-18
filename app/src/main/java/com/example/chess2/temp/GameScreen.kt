@@ -55,6 +55,7 @@ import com.example.chess2.game.figures.FigureName
 import com.example.chess2.game.figures.PlayerColor
 import com.example.chess2.ui.theme.Chess2Theme
 import com.example.chess2.user.UserQueue
+import com.example.chess2.user.UserViewModel
 import com.google.firebase.auth.FirebaseAuth
 import java.text.FieldPosition
 import java.util.Locale
@@ -62,6 +63,7 @@ import java.util.Locale
 @Composable
 fun GameScreen(
     gameStateViewModel: GameStateViewModel = viewModel(),
+    userViewModel: UserViewModel = viewModel(),
     navController: NavHostController
 ) {
 
@@ -101,6 +103,7 @@ fun GameScreen(
                     onClick = {
                         showDialog = false
                         val playerColor = if (isWhitePlayer) PlayerColor.WHITE else PlayerColor.BLACK
+                        gameStateViewModel.admitDefeat(playerColor)
                         gameStateViewModel.endGame(playerColor)
                     }
                 ) {
@@ -128,6 +131,9 @@ fun GameScreen(
             confirmButton = {
                 Button(
                     onClick = {
+                        gameStateViewModel.resetState()
+                        userViewModel.resetState()
+                        gameStateViewModel.onCleared()
                         navController.popBackStack(route = "search_game", inclusive = false) // Or perform any other action to go back
                     }
                 ) {

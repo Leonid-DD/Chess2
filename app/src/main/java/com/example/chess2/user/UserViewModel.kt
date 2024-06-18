@@ -113,7 +113,7 @@ class UserViewModel : ViewModel() {
     }
 
     // Clean up resources when ViewModel is no longer needed
-    override fun onCleared() {
+    public override fun onCleared() {
         super.onCleared()
         searchListener?.remove()
     }

@@ -25,13 +25,12 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
 
-class GameStateViewModel(
-    private val context: Context
-) : ViewModel() {
+class GameStateViewModel() : ViewModel() {
 
     //Game State
     private val _gameState = MutableStateFlow(GameState())
@@ -58,6 +57,8 @@ class GameStateViewModel(
     private lateinit var users: Pair<UserQueue, UserQueue>
 
     private var selectedPiecePosition: Pair<Int, Int>? = null
+
+    var timers = false
 
     private val _whiteMove = MutableStateFlow(true) // Example turn state
     val whiteMove: StateFlow<Boolean> = _whiteMove.asStateFlow()
@@ -776,8 +777,9 @@ class GameStateViewModel(
     }
 
     private fun startTimers() {
+        timers = true
         viewModelScope.launch {
-            while (true) {
+            while (timers) {
                 delay(1000L)
                 if (_whiteMove.value) {
                     _whitePlayerTime.value -= 1
@@ -792,6 +794,10 @@ class GameStateViewModel(
                 }
             }
         }
+    }
+
+    private fun stopTimers() {
+        timers = false
     }
 
     private fun generateClassicModeState(): MutableList<MutableList<Figure?>> {
@@ -1098,15 +1104,48 @@ class GameStateViewModel(
         return kingPosition != null
     }
 
+    fun admitDefeat(color: PlayerColor) {
+        val gameState = _gameState.value.state
+        val state = gameState.map { it.toMutableList() }.toMutableList()
+
+        val kingPosition = state.flatten()
+            .firstOrNull { it?.name == FigureName.KING && it?.color == color }
+            ?.let { Pair(it.row, it.col) }
+
+        if (kingPosition != null) {
+            val updatedState = _gameState.value.state
+            updatedState[kingPosition.first][kingPosition.second] = null
+            _gameState.value = GameState(updatedState)
+        }
+
+        updateGameStateInFirestore()
+    }
+
     fun endGame(losingColor: PlayerColor) {
         val currentPlayerColor =
             if (FirebaseAuth.getInstance().uid == getWhitePlayer().userId) PlayerColor.WHITE else PlayerColor.BLACK
         _gameEnded.value = true
         gameDetails().delete()
-        val message = if (currentPlayerColor == losingColor) {
+        _message.value = if (currentPlayerColor == losingColor) {
             "К сожалению вы проиграли."
         } else {
             "Поздравляем, вы победили!"
         }
+    }
+
+    fun resetState() {
+        stopTimers()
+        _gameState.update { GameState() }
+        _highlightState.update { ValidMoves() }
+        _blackPlayerTime.update { 600 }
+        _whitePlayerTime.update { 600 }
+        _whiteMove.update { true }
+        _gameEnded.update { false }
+        _message.update { "" }
+    }
+
+    public override fun onCleared() {
+        super.onCleared()
+        gameStateListener?.remove()
     }
 }

@@ -65,7 +65,7 @@ class MainActivity : ComponentActivity() {
 
     val signInViewModel = SignInViewModel()
     val userViewModel = UserViewModel()
-    val gameViewModel = GameStateViewModel(this)
+    val gameViewModel = GameStateViewModel()
 
     @SuppressLint("CoroutineCreationDuringComposition")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -198,7 +198,7 @@ class MainActivity : ComponentActivity() {
                         }
                         composable("game") {
 
-                            //if (!gameViewModel.initDone) gameViewModel.initGame()
+                            userViewModel.onCleared()
 
                             var currentUserId: String by remember { mutableStateOf("") }
                             var whitePlayer: UserQueue? by remember { mutableStateOf(null) }
@@ -214,6 +214,7 @@ class MainActivity : ComponentActivity() {
                                 key(whitePlayer) {
                                     GameScreen(
                                         gameViewModel,
+                                        userViewModel,
                                         navController
                                     )
                                 }
